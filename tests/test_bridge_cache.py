@@ -15,7 +15,7 @@ def test_bridge_fingerprint_and_cached_subtitles():
         db_path = Path(tmp) / "test_subtitles.db"
         cache = SubtitleCache(db_path=db_path)
 
-        bridge = BridgeApi(port=8080)
+        bridge = BridgeApi(port=8080, cache=cache)
 
         # 1. Get fingerprint
         fp_res = bridge.get_video_fingerprint(str(video))

@@ -20,8 +20,9 @@ class VideoDialogResponse(BaseModel):
     stream_url: Optional[str] = None
 
 class BridgeApi:
-    def __init__(self, port: int) -> None:
+    def __init__(self, port: int, cache: Optional[SubtitleCache] = None) -> None:
         self.port: int = port
+        self._cache: SubtitleCache = cache if cache is not None else SubtitleCache()
         # Prefix with underscore so pywebview's js_api dir() introspector skips
         # this attribute. Without underscore, pywebview recurses into the webview
         # Window → native COM object from a non-UI thread, causing the
@@ -132,8 +133,7 @@ class BridgeApi:
         """Check cache for existing transcript/translation of this video."""
         try:
             fp = compute_video_fingerprint(video_path)
-            cache = SubtitleCache()
-            cues = cache.get_cues(fp, target_language)
+            cues = self._cache.get_cues(fp, target_language)
             return {
                 "ok": True,
                 "cached": cues is not None,
@@ -149,9 +149,8 @@ class BridgeApi:
         """Persist generated cues into SQLite cache."""
         try:
             fp = compute_video_fingerprint(video_path)
-            cache = SubtitleCache()
             filename = os.path.basename(video_path)
-            cache.save_cues(fp, target_language, cues, source_filename=filename)
+            self._cache.save_cues(fp, target_language, cues, source_filename=filename)
             return {"ok": True, "fingerprint": fp}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
