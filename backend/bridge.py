@@ -247,8 +247,8 @@ class BridgeApi:
         if not stt_cls or not trans_cls:
             raise RuntimeError("Transcription hoặc Translation Provider chưa được đăng ký")
         stt_key = settings.deepgram_api_key if stt_name == "deepgram" else "custom-key"
-        trans_key = settings.deepl_api_key if trans_name == "deepl" else "custom-key"
-        if not stt_key or not trans_key:
+        trans_key = settings.deepl_api_key if trans_name == "deepl" else ""
+        if not stt_key or (trans_name == "deepl" and not trans_key):
             raise RuntimeError("Chưa cấu hình API key cho Transcription hoặc Translation Provider.")
         return run_subtitling_pipeline(
             video_path=job.video_path,
@@ -363,8 +363,8 @@ class BridgeApi:
         if not stt_key:
             return {"ok": False, "error": "Chưa cấu hình API key cho Deepgram trong Cài đặt."}
 
-        trans_key = settings.deepl_api_key if trans_name == "deepl" else "custom-key"
-        if not trans_key:
+        trans_key = settings.deepl_api_key if trans_name == "deepl" else ""
+        if trans_name == "deepl" and not trans_key:
             return {"ok": False, "error": "Chưa cấu hình API key cho DeepL trong Cài đặt."}
 
         stt_provider = stt_cls(stt_key)

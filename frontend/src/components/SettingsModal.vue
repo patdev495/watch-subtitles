@@ -37,6 +37,11 @@ watch(() => form.value.deepl_api_key, () => {
   saveError.value = '';
 });
 
+watch(() => form.value.translation_provider, () => {
+  deeplStatus.value = null;
+  saveError.value = '';
+});
+
 const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES.map(({ code: value, name: label }) => ({ value, label }));
 
 async function testDeepgram(): Promise<boolean> {
@@ -67,8 +72,8 @@ async function testDeepgram(): Promise<boolean> {
 }
 
 async function testDeepl(): Promise<boolean> {
-  const key = form.value.deepl_api_key.trim();
-  if (!key) {
+  const key = form.value.translation_provider === 'deepl' ? form.value.deepl_api_key.trim() : '';
+  if (form.value.translation_provider === 'deepl' && !key) {
     deeplStatus.value = null;
     return true;
   }
@@ -199,13 +204,18 @@ function close() {
               </div>
             </section>
 
-            <!-- DeepL Translation -->
+            <!-- Translation provider -->
             <section class="settings-section">
               <div class="section-label">
-                <span class="section-title">DeepL (Translation)</span>
+                <span class="section-title">Dịch phụ đề</span>
                 <span class="section-badge">{{ form.translation_provider }}</span>
               </div>
-              <div class="field-row">
+              <label class="sr-only" for="translation-provider">Dịch vụ dịch</label>
+              <select id="translation-provider" v-model="form.translation_provider" class="field-select">
+                <option value="deepl">DeepL — cần API key</option>
+                <option value="google">Google Translate — miễn phí, không cần key</option>
+              </select>
+              <div v-if="form.translation_provider === 'deepl'" class="field-row">
                 <input
                   id="deepl-key"
                   v-model="form.deepl_api_key"
@@ -222,6 +232,10 @@ function close() {
                   <TestTube2 :size="13" />
                   {{ isTestingDeepl ? 'Kiểm tra...' : 'Test' }}
                 </button>
+              </div>
+              <div v-else class="provider-note">
+                <span>Google Translate không cần API key.</span>
+                <button class="btn-test" :disabled="isTestingDeepl" @click="testDeepl"><TestTube2 :size="13" />{{ isTestingDeepl ? 'Kiểm tra...' : 'Test kết nối' }}</button>
               </div>
               <div v-if="deeplStatus" class="status-row">
                 <component
@@ -312,6 +326,7 @@ function close() {
   color: #818cf8; font-weight: 600;
 }
 .field-row { display: flex; gap: 8px; }
+.provider-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #94a3b8; font-size: 12px; }
 .field-input {
   flex: 1; padding: 9px 12px; background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;

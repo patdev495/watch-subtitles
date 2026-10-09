@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue';
 import type { SubtitleJob } from '../types';
 import type { QueuedVideo, QueueGenerationRequest } from '../components/QueueScreen.vue';
 
-export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: SubtitleJob) => void, isGenerating: Ref<boolean>) {
+export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: SubtitleJob, previous?: SubtitleJob) => void, isGenerating: Ref<boolean>) {
   const activeScreen = ref<'player' | 'queue'>('player');
   const queuedVideos = ref<QueuedVideo[]>([]);
   const subtitleJobs = ref<SubtitleJob[]>([]);
@@ -15,7 +15,7 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
     const previous = index === -1 ? undefined : subtitleJobs.value[index];
     if (index === -1) subtitleJobs.value.push(job);
     else subtitleJobs.value[index] = job;
-    if (previous?.status !== job.status || index === -1) onJobUpdate(job);
+    onJobUpdate(job, previous);
     if (job.status === 'completed') {
       const video = queuedVideos.value.find((item) => item.path === job.video_path);
       if (video && !video.cachedPairs?.some(([source, target]) => source === job.source_language && target === job.target_language)) {

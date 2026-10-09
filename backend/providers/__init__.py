@@ -7,6 +7,7 @@ Adding a new provider:
 from .base import STTProvider, TranslationProvider, TTSProvider, TranscriptionProvider
 from .deepgram import DeepgramProvider
 from .deepl import DeepLProvider
+from .google_translate import GoogleTranslateProvider
 
 STT_PROVIDERS: dict[str, type[STTProvider]] = {
     "deepgram": DeepgramProvider,
@@ -14,6 +15,7 @@ STT_PROVIDERS: dict[str, type[STTProvider]] = {
 
 TRANSLATION_PROVIDERS: dict[str, type[TranslationProvider]] = {
     "deepl": DeepLProvider,
+    "google": GoogleTranslateProvider,
 }
 
 TTS_PROVIDERS: dict[str, type[TTSProvider]] = {}
@@ -38,6 +40,7 @@ __all__ = [
     "TTSProvider",
     "DeepgramProvider",
     "DeepLProvider",
+    "GoogleTranslateProvider",
     "STT_PROVIDERS",
     "TRANSLATION_PROVIDERS",
     "TTS_PROVIDERS",
@@ -45,4 +48,3 @@ __all__ = [
     "register_translation_provider",
     "register_tts_provider",
 ]
-

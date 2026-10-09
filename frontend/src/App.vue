@@ -40,12 +40,16 @@ function loadMockCues(): void {
 
 const { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo } = useSubtitleQueue(
   currentFilePath,
-  (job) => {
-    if (job.video_path === currentFilePath.value && job.status === 'completed') {
-      cues.value = job.cues;
-      hasSubtitles.value = job.cues.length > 0;
+  (job, previous) => {
+    if (job.video_path === currentFilePath.value) {
+      showPipelineProgress.value = true;
+      pipelineStatus.value = { status: job.status === 'completed' ? 'completed' : job.status === 'failed' || job.status === 'cancelled' ? 'error' : 'running', progress: job.progress, step: job.step, cues: job.cues, error: job.error };
+      if (job.status === 'completed') {
+        cues.value = job.cues;
+        hasSubtitles.value = job.cues.length > 0;
+      }
     }
-    if (job.status === 'completed' || job.status === 'failed') {
+    if ((job.status === 'completed' || job.status === 'failed') && previous?.status !== job.status) {
       notifications.value.push({ id: job.id, message: job.status === 'completed' ? `Hoàn thành: ${job.video_path.split(/[/\\]/).pop()}` : `Lỗi: ${job.error}`, failed: job.status === 'failed' });
       setTimeout(() => { notifications.value = notifications.value.filter((item) => item.id !== job.id); }, 5000);
     }
@@ -165,84 +169,6 @@ async function handleGenerateSubtitles(source: string, target: string): Promise<
   if (window.pywebview?.api) {
     await createSubtitleJob({ path: currentFilePath.value, filename: currentFilename.value }, source, target);
     return;
-  }
-
-  isGenerating.value = true;
-  showPipelineProgress.value = true;
-  pipelineStatus.value = {
-    status: 'running',
-    progress: 5,
-    step: 'Đang khởi động quy trình...',
-    cues: [],
-    error: null,
-  };
-
-  const progressHandler = (e: Event) => {
-    const detail = (e as CustomEvent).detail as PipelineStatus;
-    if (detail) {
-      pipelineStatus.value = detail;
-      if (detail.status === 'completed') {
-        cues.value = detail.cues;
-        isGenerating.value = false;
-        window.removeEventListener('pipeline-progress', progressHandler);
-      } else if (detail.status === 'error') {
-        isGenerating.value = false;
-        window.removeEventListener('pipeline-progress', progressHandler);
-      }
-    }
-  };
-  window.addEventListener('pipeline-progress', progressHandler);
-
-  if (window.pywebview?.api) {
-    try {
-      const res = await window.pywebview.api.start_subtitles_pipeline(currentFilePath.value, source, target, true);
-      if (!res.ok) {
-        isGenerating.value = false;
-        pipelineStatus.value = {
-          status: 'error',
-          progress: 0,
-          step: 'Lỗi',
-          cues: [],
-          error: res.error || 'Không thể khởi động pipeline.',
-        };
-        window.removeEventListener('pipeline-progress', progressHandler);
-        return;
-      }
-
-      const pollTimer = setInterval(async () => {
-        if (!isGenerating.value) {
-          clearInterval(pollTimer);
-          return;
-        }
-        try {
-          const st = await window.pywebview?.api?.get_pipeline_status();
-          if (st) {
-            pipelineStatus.value = st;
-            if (st.status === 'completed') {
-              cues.value = st.cues;
-              hasSubtitles.value = true;
-              isGenerating.value = false;
-              clearInterval(pollTimer);
-            } else if (st.status === 'error') {
-              isGenerating.value = false;
-              clearInterval(pollTimer);
-            }
-          }
-        } catch {
-          clearInterval(pollTimer);
-        }
-      }, 500);
-    } catch (err) {
-      isGenerating.value = false;
-      pipelineStatus.value = {
-        status: 'error',
-        progress: 0,
-        step: 'Lỗi',
-        cues: [],
-        error: String(err),
-      };
-      window.removeEventListener('pipeline-progress', progressHandler);
-    }
   }
 }
 
