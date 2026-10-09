@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Issue 04: API Key Settings & Persistence
 
@@ -11,11 +11,11 @@ Provide a Settings dialog in the Vue frontend where users can enter and manage t
 The Python backend securely stores these preferences in a local JSON or SQLite configuration file in the user's application data directory. Upon launching the application, saved settings are retrieved and populated into the UI state.
 
 ## Acceptance criteria
-- [ ] Pydantic model on backend defining `AppSettings` (deepgram_api_key, deepl_api_key, default_target_language).
-- [ ] Settings modal in Vue accessible via a gear icon with form validation.
-- [ ] Backend bridge exposes `get_settings()` and `save_settings(settings: AppSettings)` methods.
-- [ ] API keys are persisted across application restarts.
-- [ ] Includes an optional "Test Connection" button that validates the entered Deepgram and DeepL API keys by sending lightweight test ping requests.
+- [x] Pydantic model on backend defining `AppSettings` (deepgram_api_key, deepl_api_key, default_target_language).
+- [x] Settings modal in Vue accessible via a gear icon with form validation.
+- [x] Backend bridge exposes `get_settings()` and `save_settings(settings: AppSettings)` methods.
+- [x] API keys are persisted across application restarts.
+- [x] Includes an optional "Test Connection" button that validates the entered Deepgram and DeepL API keys by sending lightweight test ping requests.
 
 ## Blocked by
 .scratch/video-subtitling/issues/01-project-skeleton-desktop-shell.md

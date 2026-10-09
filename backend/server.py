@@ -1,13 +1,24 @@
 import os
 import re
+import sys
 import mimetypes
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from typing import Tuple, Optional
 import socket
 import threading
 
 DIST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+
+class VideoStreamServer(ThreadingHTTPServer):
+    """Multi-threaded HTTP server that silently handles client disconnects during video streaming."""
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        err = sys.exception()
+        if isinstance(err, (ConnectionError, BrokenPipeError, OSError)):
+            return
+        super().handle_error(request, client_address)
 
 class VideoStreamHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
@@ -61,7 +72,7 @@ class VideoStreamHandler(BaseHTTPRequestHandler):
             with open(file_path, "rb") as f:
                 while chunk := f.read(64 * 1024):
                     self.wfile.write(chunk)
-        except (ConnectionResetError, BrokenPipeError):
+        except (ConnectionError, BrokenPipeError, OSError):
             pass
 
     def handle_video_stream(self, query: str) -> None:
@@ -125,7 +136,7 @@ class VideoStreamHandler(BaseHTTPRequestHandler):
                         break
                     self.wfile.write(data)
                     bytes_to_read -= len(data)
-        except (ConnectionResetError, BrokenPipeError):
+        except (ConnectionError, BrokenPipeError, OSError):
             pass
 
 
@@ -135,9 +146,9 @@ def find_free_port() -> int:
         return int(s.getsockname()[1])
 
 
-def start_stream_server() -> Tuple[HTTPServer, int]:
+def start_stream_server() -> Tuple[ThreadingHTTPServer, int]:
     port = find_free_port()
-    server = HTTPServer(("127.0.0.1", port), VideoStreamHandler)
+    server = VideoStreamServer(("127.0.0.1", port), VideoStreamHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, port

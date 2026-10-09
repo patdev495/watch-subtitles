@@ -9,6 +9,7 @@ Remote: `https://github.com/patdev495/watch-subtitles.git`
 
 - Python Backend: UV ONLY (`uv run python`, `uv add`, `uv sync`). Never use `pip` or plain `python`. Enforce strict type annotations / Pydantic models.
 - Frontend: PNPM ONLY (`pnpm install`, `pnpm dev`, `pnpm build`). Vue 3 + TypeScript with full type checking (`vue-tsc`).
+  - **TypeScript-only**: No `.js` files allowed. All scripts must use `.ts`. All Vue `<script>` blocks must declare `lang="ts"`. The compiler enforces this via `allowJs: false` in `tsconfig.app.json`.
 - Architecture: Maintain loose coupling, separate UI, business logic, and infrastructure.
 
 ## Agent skills

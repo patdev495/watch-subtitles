@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FolderOpen, Film, Activity, Sparkles } from 'lucide-vue-next';
+import { FolderOpen, Film, Activity, Sparkles, Settings } from 'lucide-vue-next';
 
 defineProps<{
   currentFilename?: string;
@@ -9,6 +9,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'open-video'): void;
   (e: 'ping-backend'): void;
+  (e: 'open-settings'): void;
 }>();
 </script>
 
@@ -56,6 +57,15 @@ const emit = defineEmits<{
       >
         <FolderOpen :size="15" class="btn-icon" />
         <span>Mở Video</span>
+      </button>
+
+      <!-- Settings Button -->
+      <button
+        class="icon-btn-settings"
+        title="Cài đặt API"
+        @click="emit('open-settings')"
+      >
+        <Settings :size="15" />
       </button>
 
       <!-- Status Pill -->
@@ -248,5 +258,24 @@ const emit = defineEmits<{
 .status-pill.active .status-dot {
   background: #10b981;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+}
+
+.icon-btn-settings {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 41, 59, 0.6);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.icon-btn-settings:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
 }
 </style>

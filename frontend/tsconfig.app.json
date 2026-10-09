@@ -5,6 +5,9 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
 
+    /* TypeScript-only enforcement */
+    "allowJs": false,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

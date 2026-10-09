@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Issue 03: Interactive Transcript Footer
 
@@ -24,12 +24,12 @@ During playback, as the video emits time updates, the footer highlights the acti
 Includes mock data fixtures to test and verify the component independently before backend STT/Translation are wired up.
 
 ## Acceptance criteria
-- [ ] TypeScript definition for `Cue` model defined in shared types.
-- [ ] Footer renders all cues with dual text (original on top, translated below) with clean typography.
-- [ ] Active cue dynamically highlights when `videoCurrentTime` falls within `[start, end]`.
-- [ ] Footer container auto-scrolls to keep the active cue centered or visible without jarring user interaction.
-- [ ] Clicking any cue dispatches a seek event to the video player and updates playback to that cue's start timestamp.
-- [ ] Tested and verified using a mock list of 50+ cues.
+- [x] TypeScript definition for `Cue` model defined in shared types.
+- [x] Footer renders all cues with dual text (original on top, translated below) with clean typography.
+- [x] Active cue dynamically highlights when `videoCurrentTime` falls within `[start, end]`.
+- [x] Footer container auto-scrolls to keep the active cue centered or visible without jarring user interaction.
+- [x] Clicking any cue dispatches a seek event to the video player and updates playback to that cue's start timestamp.
+- [x] Tested and verified using a mock list of 50+ cues.
 
 ## Blocked by
 .scratch/video-subtitling/issues/02-local-video-loading-playback.md

@@ -3,6 +3,8 @@ from typing import Optional, Dict, Any
 from urllib.parse import quote
 import webview
 from pydantic import BaseModel
+from backend.settings import AppSettings, load_settings, save_settings as persist_settings
+from backend.providers import STT_PROVIDERS, TRANSLATION_PROVIDERS, TTS_PROVIDERS
 
 class PingResponse(BaseModel):
     status: str
@@ -80,3 +82,35 @@ class BridgeApi:
             stream_url=stream_url
         ).model_dump()
 
+    # ── Settings ────────────────────────────────────────────────────────────────
+
+    def get_settings(self) -> Dict[str, Any]:
+        """Return persisted AppSettings as a plain dict for the frontend."""
+        return load_settings().model_dump()
+
+    def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist settings from frontend. Returns saved settings for confirmation."""
+        settings = AppSettings(**data)
+        persist_settings(settings)
+        return settings.model_dump()
+
+    def test_connection(self, provider_type: str, provider_name: str, api_key: str) -> Dict[str, Any]:
+        """Validate API key for a named provider. provider_type: 'stt' | 'translation'."""
+        try:
+            if provider_type == "stt":
+                cls = STT_PROVIDERS.get(provider_name)
+            elif provider_type == "translation":
+                cls = TRANSLATION_PROVIDERS.get(provider_name)
+            elif provider_type == "tts":
+                cls = TTS_PROVIDERS.get(provider_name)
+            else:
+                return {"ok": False, "message": f"Unknown provider_type: {provider_type}"}
+
+            if cls is None:
+                return {"ok": False, "message": f"Provider '{provider_name}' not registered"}
+
+            provider = cls(api_key)
+            valid = provider.validate_key(api_key)
+            return {"ok": valid, "message": "Connected" if valid else "Invalid API key"}
+        except Exception as exc:
+            return {"ok": False, "message": str(exc)}
