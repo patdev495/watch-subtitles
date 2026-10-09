@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Issue 05: Local Audio Extraction & Video Fingerprint Cache
 
@@ -13,11 +13,11 @@ Implement media preprocessing and local subtitle caching in the Python backend.
 3. **Subtitle Cache**: Maintain a local persistent store (SQLite database or JSON store keyed by `Video Fingerprint`) capable of storing and querying previously generated `Cue` sequences along with their Target Language.
 
 ## Acceptance criteria
-- [ ] Deterministic `Video Fingerprint` function returns identical hashes for the same file when renamed or moved, but distinct hashes for different media files.
-- [ ] FFmpeg audio extraction module reliably isolates audio from supported video containers without freezing the UI thread.
-- [ ] Cache database schema stores `video_fingerprint`, `source_filename`, `target_language`, and serialized `cues`.
-- [ ] Querying the cache for a cached video returns existing cues immediately without requiring audio extraction or external API calls.
-- [ ] Unit tests verify fingerprint calculation and cache read/write operations.
+- [x] Deterministic `Video Fingerprint` function returns identical hashes for the same file when renamed or moved, but distinct hashes for different media files.
+- [x] FFmpeg audio extraction module reliably isolates audio from supported video containers without freezing the UI thread.
+- [x] Cache database schema stores `video_fingerprint`, `source_filename`, `target_language`, and serialized `cues`.
+- [x] Querying the cache for a cached video returns existing cues immediately without requiring audio extraction or external API calls.
+- [x] Unit tests verify fingerprint calculation and cache read/write operations.
 
 ## Blocked by
 .scratch/video-subtitling/issues/02-local-video-loading-playback.md

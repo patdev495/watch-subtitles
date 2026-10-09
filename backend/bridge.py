@@ -5,6 +5,9 @@ import webview
 from pydantic import BaseModel
 from backend.settings import AppSettings, load_settings, save_settings as persist_settings
 from backend.providers import STT_PROVIDERS, TRANSLATION_PROVIDERS, TTS_PROVIDERS
+from backend.fingerprint import compute_video_fingerprint
+from backend.cache import SubtitleCache
+from backend.audio import extract_audio
 
 class PingResponse(BaseModel):
     status: str
@@ -114,3 +117,50 @@ class BridgeApi:
             return {"ok": valid, "message": "Connected" if valid else "Invalid API key"}
         except Exception as exc:
             return {"ok": False, "message": str(exc)}
+
+    # ── Fingerprint, Cache & Audio Extraction ────────────────────────────────────
+
+    def get_video_fingerprint(self, video_path: str) -> Dict[str, Any]:
+        """Compute content hash for video file."""
+        try:
+            fp = compute_video_fingerprint(video_path)
+            return {"ok": True, "fingerprint": fp}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def get_cached_subtitles(self, video_path: str, target_language: str) -> Dict[str, Any]:
+        """Check cache for existing transcript/translation of this video."""
+        try:
+            fp = compute_video_fingerprint(video_path)
+            cache = SubtitleCache()
+            cues = cache.get_cues(fp, target_language)
+            return {
+                "ok": True,
+                "cached": cues is not None,
+                "fingerprint": fp,
+                "cues": cues or [],
+            }
+        except Exception as exc:
+            return {"ok": False, "cached": False, "error": str(exc), "cues": []}
+
+    def save_cached_subtitles(
+        self, video_path: str, target_language: str, cues: list
+    ) -> Dict[str, Any]:
+        """Persist generated cues into SQLite cache."""
+        try:
+            fp = compute_video_fingerprint(video_path)
+            cache = SubtitleCache()
+            filename = os.path.basename(video_path)
+            cache.save_cues(fp, target_language, cues, source_filename=filename)
+            return {"ok": True, "fingerprint": fp}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def extract_video_audio(self, video_path: str) -> Dict[str, Any]:
+        """Extract audio stream from video using local FFmpeg."""
+        try:
+            audio_path = extract_audio(video_path)
+            return {"ok": True, "audio_path": str(audio_path)}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
