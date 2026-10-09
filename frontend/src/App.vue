@@ -6,22 +6,20 @@ import VideoPlayer from './components/VideoPlayer.vue';
 import TranscriptFooter from './components/TranscriptFooter.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import PipelineProgressBar from './components/PipelineProgressBar.vue';
+import QueueScreen from './components/QueueScreen.vue';
+import { useSubtitleQueue } from './composables/useSubtitleQueue';
 import { getMockCues } from './fixtures/mockCues';
-import type { VideoDialogResponse, AppSettings, Cue, PipelineStatus } from './types';
-
+import type { VideoDialogResponse, AppSettings, Cue, PipelineStatus, SubtitleJob } from './types';
 // ── Video state ──────────────────────────────────────────────────────────────
-
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
 const currentFilePath = ref<string>('');
 const backendConnected = ref<boolean>(false);
 const isDragging = ref<boolean>(false);
-
+const notifications = ref<{ id: string; message: string; failed: boolean }[]>([]);
 const currentTime = ref<number>(0);
 const duration = ref<number>(0);
-
 // ── Pipeline & Subtitle state ────────────────────────────────────────────────
-
 const sourceLanguage = ref<string>('en');
 const targetLanguage = ref<string>('vi');
 const hasSubtitles = ref<boolean>(false);
@@ -34,17 +32,28 @@ const pipelineStatus = ref<PipelineStatus>({
   cues: [],
   error: null,
 });
-
 // ── Cue / Transcript state ───────────────────────────────────────────────────
-
 const cues = ref<Cue[]>([]);
-
 function loadMockCues(): void {
   cues.value = getMockCues();
 }
 
-// ── Settings state ───────────────────────────────────────────────────────────
+const { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo } = useSubtitleQueue(
+  currentFilePath,
+  (job) => {
+    if (job.video_path === currentFilePath.value && job.status === 'completed') {
+      cues.value = job.cues;
+      hasSubtitles.value = job.cues.length > 0;
+    }
+    if (job.status === 'completed' || job.status === 'failed') {
+      notifications.value.push({ id: job.id, message: job.status === 'completed' ? `Hoàn thành: ${job.video_path.split(/[/\\]/).pop()}` : `Lỗi: ${job.error}`, failed: job.status === 'failed' });
+      setTimeout(() => { notifications.value = notifications.value.filter((item) => item.id !== job.id); }, 5000);
+    }
+  },
+  isGenerating,
+);
 
+// ── Settings state ───────────────────────────────────────────────────────────
 const settingsOpen = ref<boolean>(false);
 const settings = ref<AppSettings>({
   deepgram_api_key: '',
@@ -153,6 +162,11 @@ async function handleGenerateSubtitles(source: string, target: string): Promise<
     return;
   }
 
+  if (window.pywebview?.api) {
+    await createSubtitleJob({ path: currentFilePath.value, filename: currentFilename.value }, source, target);
+    return;
+  }
+
   isGenerating.value = true;
   showPipelineProgress.value = true;
   pipelineStatus.value = {
@@ -232,7 +246,7 @@ async function handleGenerateSubtitles(source: string, target: string): Promise<
   }
 }
 
-async function handleOpenVideo(): Promise<void> {
+async function handleOpenVideo(videoPath?: string): Promise<void> {
   if (!window.pywebview?.api) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -243,6 +257,7 @@ async function handleOpenVideo(): Promise<void> {
         videoSrc.value = URL.createObjectURL(file);
         currentFilename.value = file.name;
         loadMockCues();
+        activeScreen.value = 'player';
       }
     };
     input.click();
@@ -250,12 +265,13 @@ async function handleOpenVideo(): Promise<void> {
   }
 
   try {
-    const res: VideoDialogResponse = await window.pywebview.api.open_video_dialog();
+    const res: VideoDialogResponse = videoPath ? await window.pywebview.api.load_video_path(videoPath) : await window.pywebview.api.open_video_dialog();
     if (!res.cancelled && res.stream_url && res.filename) {
       videoSrc.value = res.stream_url;
       currentFilename.value = res.filename;
       currentFilePath.value = res.path || '';
       await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, targetLanguage.value);
+      activeScreen.value = 'player';
     }
   } catch (err) {
     console.error('Lỗi khi mở video:', err);
@@ -316,6 +332,10 @@ function handleDragLeave(): void {
 
 onMounted(() => {
   checkBackendBridge();
+  window.addEventListener('subtitle-job-progress', (event: Event) => {
+    updateSubtitleJob((event as CustomEvent<SubtitleJob>).detail);
+  });
+  void refreshSubtitleJobs();
 });
 </script>
 
@@ -345,11 +365,27 @@ onMounted(() => {
       @open-video="handleOpenVideo"
       @ping-backend="handlePingBackend"
       @open-settings="settingsOpen = true"
+      @open-queue="activeScreen = activeScreen === 'queue' ? 'player' : 'queue'"
       @generate-subtitles="handleGenerateSubtitles"
     />
 
     <!-- Main Workspace -->
-    <main class="studio-workspace">
+    <QueueScreen
+      v-if="activeScreen === 'queue'"
+      :videos="queuedVideos"
+      :jobs="subtitleJobs"
+      :source-language="sourceLanguage"
+      :target-language="targetLanguage"
+      @add="addQueuedVideo"
+      @generate="createSubtitleJob"
+      @generate-all="generateAllQueuedVideos"
+      @play="video => handleOpenVideo(video.path)"
+      @retry="retrySubtitleJob"
+      @remove-job="removeSubtitleJob"
+      @remove-video="removeQueuedVideo"
+      @back="activeScreen = 'player'"
+    />
+    <main v-else class="studio-workspace">
       <!-- Player Area -->
       <section class="player-wrapper">
         <VideoPlayer
@@ -358,13 +394,18 @@ onMounted(() => {
           @timeupdate="t => currentTime = t"
           @durationchange="d => duration = d"
           @open-file="handleOpenVideo"
-        />
-        <TranscriptFooter
-          :cues="cues"
-          :current-time="currentTime"
-          :source-language="sourceLanguage"
-          :target-language="targetLanguage"
-        />
+        >
+          <template #default="{ isFullscreen, controlsVisible }">
+            <TranscriptFooter
+              :cues="cues"
+              :current-time="currentTime"
+              :source-language="sourceLanguage"
+              :target-language="targetLanguage"
+              :is-fullscreen="isFullscreen"
+              :controls-visible="controlsVisible"
+            />
+          </template>
+        </VideoPlayer>
       </section>
     </main>
 
@@ -380,6 +421,11 @@ onMounted(() => {
       :initial-settings="settings"
       @saved="handleSettingsSaved"
     />
+    <aside class="notifications" aria-live="polite">
+      <button v-for="notice in notifications" :key="notice.id" :class="{ failed: notice.failed }" @click="notifications = notifications.filter(item => item.id !== notice.id)">
+        {{ notice.message }}
+      </button>
+    </aside>
   </div>
 </template>
 
@@ -437,6 +483,10 @@ onMounted(() => {
   gap: 14px;
   color: #e2e8f0;
 }
+
+.notifications { position: fixed; right: 20px; bottom: 20px; display: grid; gap: 8px; z-index: 1100; }
+.notifications button { max-width: 360px; padding: 10px 14px; text-align: left; color: #d1fae5; background: #064e3b; border: 1px solid #10b981; border-radius: 8px; cursor: pointer; }
+.notifications button.failed { color: #fee2e2; background: #450a0a; border-color: #ef4444; }
 
 .drag-icon {
   color: #38bdf8;

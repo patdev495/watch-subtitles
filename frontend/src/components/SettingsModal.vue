@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { X, Key, Languages, TestTube2, CheckCircle2, XCircle } from 'lucide-vue-next';
 import type { AppSettings, TestConnectionResponse } from '../types';
+import { SUPPORTED_LANGUAGES } from '../languages';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -36,16 +37,7 @@ watch(() => form.value.deepl_api_key, () => {
   saveError.value = '';
 });
 
-const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'vi', label: 'Tiếng Việt' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'fr', label: 'French' },
-  { value: 'zh', label: 'Chinese (Simplified)' },
-  { value: 'ko', label: 'Korean' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'de', label: 'German' },
-];
+const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES.map(({ code: value, name: label }) => ({ value, label }));
 
 async function testDeepgram(): Promise<boolean> {
   const key = form.value.deepgram_api_key.trim();

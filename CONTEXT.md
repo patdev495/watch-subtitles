@@ -60,6 +60,22 @@ _Avoid_: File path, video ID, checksum
 The local persistent store that preserves generated Cues keyed by Video Fingerprint to prevent duplicate API expenses.
 _Avoid_: Local storage, database, project file
 
+**Subtitle Job**:
+A request to generate Original and Translated Subtitles for one Video and one selected Source Language–Target Language pair.
+_Avoid_: Translation task, pipeline run, background task
+
+**Subtitle Queue**:
+The in-memory ordered list of unique Subtitle Jobs awaiting sequential processing during one application session. It does not contain a job already queued or running for the same Video and language pair, but can contain jobs for different language pairs of the same Video.
+_Avoid_: Translation queue, processing list, job list
+
+**Queued Video**:
+A Video registered on the Queue Screen for possible subtitle generation. It is separate from the Video selected for playback and does not become a Subtitle Job until generation is requested.
+_Avoid_: Playlist item, pending job, background video
+
+**Queue Screen**:
+The dedicated application screen for managing Queued Videos and Subtitle Jobs without changing the Video currently selected for playback.
+_Avoid_: Queue popup, task drawer, batch screen
+
 **Target Language**:
 The chosen language into which the original subtitles are translated.
 _Avoid_: Destination language, output dialect
@@ -83,6 +99,13 @@ _Avoid_: Password, license key
 - If not cached, the **Video** yields an **Audio Track** that is dispatched to a **Transcription Provider** using an **API Credential** to produce a sequence of **Cue** items with **Original Subtitle** text
 - Each **Cue** has its **Original Subtitle** dispatched from the chosen **Source Language** to a **Translation Provider** to generate a matching **Translated Subtitle** in the chosen **Target Language**
 - Completed **Cue** items are stored into the **Subtitle Cache** under the **Video Fingerprint**
+- A **Queued Video** becomes a **Subtitle Job** when the user requests generation for it, individually or for all eligible Queued Videos
+- A **Subtitle Job** retains the Source Language and Target Language selected when generation was requested
+- A **Subtitle Job** enters the **Subtitle Queue** and is processed one at a time without changing the Video currently selected for playback
+- The **Subtitle Queue** processes jobs in first-in, first-out order; the user can remove a waiting job and create it again to place it at the end
+- A failed **Subtitle Job** is reported to the user and does not prevent the next **Subtitle Job** from being processed
+- The user can retry a failed **Subtitle Job**, which enters the end of the **Subtitle Queue** with its original language pair
+- A **Queued Video** remains on the **Queue Screen** after its Subtitle Job completes or fails, until the user removes it or the application session ends; a running Subtitle Job cannot be removed
 - The **Interactive Transcript Footer** renders one current active **Cue** as its **Bilingual Display** during video playback or seeking
 - The user can trigger a **Subtitle Export** to save the synchronized bilingual cues to an `.srt` or `.vtt` file on disk
 

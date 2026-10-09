@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class AppSettings(BaseModel):
@@ -12,6 +12,11 @@ class AppSettings(BaseModel):
     translation_provider: str = "deepl"
     tts_provider: str = ""
     tts_api_key: str = ""
+
+    @field_validator("default_target_language", mode="before")
+    @classmethod
+    def migrate_legacy_chinese_code(cls, value: object) -> object:
+        return "zh-CN" if value == "zh" else value
 
 
 def _settings_path() -> Path:

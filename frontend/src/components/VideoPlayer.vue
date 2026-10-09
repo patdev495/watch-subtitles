@@ -25,6 +25,7 @@ const volume = ref(1);
 const isMuted = ref(false);
 const playbackRate = ref(1);
 const showControls = ref(true);
+const isFullscreen = ref(false);
 let hideControlsTimeout: number | null = null;
 
 function formatTime(seconds: number): string {
@@ -117,15 +118,24 @@ function handleMouseMove() {
   }
 }
 
+function handleFullscreenChange(): void {
+  isFullscreen.value = document.fullscreenElement === playerContainer.value;
+  showControls.value = true;
+}
+
 function handleKeydown(event: KeyboardEvent) {
   if (event.code === 'Space') { event.preventDefault(); togglePlay(); }
   else if (event.code === 'ArrowLeft') { event.preventDefault(); seekRelative(-5); }
   else if (event.code === 'ArrowRight') { event.preventDefault(); seekRelative(5); }
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown));
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+});
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
   if (hideControlsTimeout) clearTimeout(hideControlsTimeout);
 });
 
@@ -137,6 +147,7 @@ defineExpose({ seekTo });
     ref="playerContainer"
     class="player-card"
     @mousemove="handleMouseMove"
+    @touchstart.passive="handleMouseMove"
     @mouseleave="isPlaying && (showControls = false)"
   >
     <!-- Viewport -->
@@ -195,6 +206,7 @@ defineExpose({ seekTo });
         @fullscreen="toggleFullscreen"
       />
     </div>
+    <slot :is-fullscreen="isFullscreen" :controls-visible="showControls || !isPlaying" />
   </div>
 </template>
 
@@ -212,6 +224,8 @@ defineExpose({ seekTo });
   display: flex;
   flex-direction: column;
 }
+
+.player-card:fullscreen { width: 100vw; height: 100vh; border: 0; border-radius: 0; }
 
 .viewport {
   position: relative;

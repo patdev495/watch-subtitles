@@ -12,6 +12,7 @@ from backend.cache import SubtitleCache
 from backend.audio import extract_audio
 from backend.pipeline import run_subtitling_pipeline
 from backend.export import format_srt, format_vtt
+from backend.jobs import DuplicateActiveJobError, JobRunner, SubtitleJob, SubtitleJobScheduler
 
 class PingResponse(BaseModel):
     status: str
@@ -24,7 +25,9 @@ class VideoDialogResponse(BaseModel):
     stream_url: Optional[str] = None
 
 class BridgeApi:
-    def __init__(self, port: int, cache: Optional[SubtitleCache] = None) -> None:
+    def __init__(
+        self, port: int, cache: Optional[SubtitleCache] = None, job_runner: Optional[JobRunner] = None
+    ) -> None:
         self.port: int = port
         self._cache: SubtitleCache = cache if cache is not None else SubtitleCache()
         # Prefix with underscore so pywebview's js_api dir() introspector skips
@@ -41,6 +44,7 @@ class BridgeApi:
             "error": None,
         }
         self._pipeline_lock = threading.Lock()
+        self._job_scheduler = SubtitleJobScheduler(job_runner or self._run_subtitle_job, self._emit_job_progress)
 
     def set_window(self, window: webview.Window) -> None:
         self._window = window
@@ -182,6 +186,90 @@ class BridgeApi:
             return {"ok": True, "audio_path": str(audio_path)}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    # ── Subtitle Jobs ───────────────────────────────────────────────────────────
+
+    def create_subtitle_job(self, video_path: str, source_language: str, target_language: str) -> Dict[str, Any]:
+        """Queue one identified Subtitle Job, or complete it from Subtitle Cache."""
+        if not os.path.isfile(video_path):
+            return {"ok": False, "error": f"Video file not found: {video_path}"}
+        job = SubtitleJob(
+            video_path=video_path,
+            source_language=source_language,
+            target_language=target_language,
+        )
+        try:
+            fingerprint = compute_video_fingerprint(video_path)
+            cached_cues = self._cache.get_cues(fingerprint, source_language, target_language)
+            if cached_cues is not None:
+                completed = self._job_scheduler.complete_from_cache(job, cached_cues)
+                return {"ok": True, "job": completed.model_dump()}
+            queued = self._job_scheduler.enqueue(job)
+            return {"ok": True, "job": queued.model_dump()}
+        except DuplicateActiveJobError as exc:
+            return {"ok": False, "error": str(exc), "duplicate": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def get_subtitle_job(self, job_id: str) -> Dict[str, Any]:
+        """Return isolated state for one Subtitle Job."""
+        job = self._job_scheduler.get(job_id)
+        if not job:
+            return {"ok": False, "error": "Subtitle Job not found"}
+        return {"ok": True, "job": job.model_dump()}
+
+    def list_subtitle_jobs(self) -> Dict[str, Any]:
+        """Return all jobs in their creation order for Queue Screen rendering."""
+        return {"ok": True, "jobs": [job.model_dump() for job in self._job_scheduler.list()]}
+
+    def remove_subtitle_job(self, job_id: str) -> Dict[str, Any]:
+        """Remove a waiting job. Processing jobs deliberately cannot be removed."""
+        job = self._job_scheduler.cancel_waiting(job_id)
+        if not job:
+            return {"ok": False, "error": "Chỉ Subtitle Job đang chờ mới có thể xóa."}
+        return {"ok": True, "job": job.model_dump()}
+
+    def retry_subtitle_job(self, job_id: str) -> Dict[str, Any]:
+        """Append a replacement job using a failed Job's original language pair."""
+        failed_job = self._job_scheduler.get(job_id)
+        if not failed_job or failed_job.status != "failed":
+            return {"ok": False, "error": "Chỉ Subtitle Job thất bại mới có thể thử lại."}
+        return self.create_subtitle_job(
+            failed_job.video_path, failed_job.source_language, failed_job.target_language
+        )
+
+    def _run_subtitle_job(self, job: SubtitleJob, on_progress: Any) -> list[Dict[str, Any]]:
+        settings = load_settings()
+        stt_name = settings.stt_provider or "deepgram"
+        trans_name = settings.translation_provider or "deepl"
+        stt_cls = STT_PROVIDERS.get(stt_name)
+        trans_cls = TRANSLATION_PROVIDERS.get(trans_name)
+        if not stt_cls or not trans_cls:
+            raise RuntimeError("Transcription hoặc Translation Provider chưa được đăng ký")
+        stt_key = settings.deepgram_api_key if stt_name == "deepgram" else "custom-key"
+        trans_key = settings.deepl_api_key if trans_name == "deepl" else "custom-key"
+        if not stt_key or not trans_key:
+            raise RuntimeError("Chưa cấu hình API key cho Transcription hoặc Translation Provider.")
+        return run_subtitling_pipeline(
+            video_path=job.video_path,
+            source_language=job.source_language,
+            target_language=job.target_language,
+            stt_provider=stt_cls(stt_key),
+            translation_provider=trans_cls(trans_key),
+            cache=self._cache,
+            on_progress=on_progress,
+        )
+
+    def _emit_job_progress(self, job: Dict[str, Any]) -> None:
+        if not self._window:
+            return
+        try:
+            payload = json.dumps(job)
+            self._window.evaluate_js(
+                f"window.dispatchEvent(new CustomEvent('subtitle-job-progress', {{ detail: {payload} }}));"
+            )
+        except Exception:
+            pass
 
     # ── Subtitle Export ──────────────────────────────────────────────────────────
 

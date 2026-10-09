@@ -10,6 +10,8 @@ const props = defineProps<{
   currentTime: number;
   sourceLanguage: string;
   targetLanguage: string;
+  isFullscreen?: boolean;
+  controlsVisible?: boolean;
 }>();
 
 type SubtitleLine = 'original' | 'originalPinyin' | 'translated' | 'translatedPinyin';
@@ -88,7 +90,7 @@ async function exportSubtitles(): Promise<void> {
 </script>
 
 <template>
-  <section v-if="activeCue" class="subtitle-overlay" aria-label="Phụ đề hiện tại">
+  <section v-if="activeCue" :class="['subtitle-overlay', { fullscreen: isFullscreen, 'controls-visible': controlsVisible }]" aria-label="Phụ đề hiện tại">
     <div class="subtitle-toolbar" aria-label="Điều khiển phụ đề">
       <button
         class="toolbar-button"
@@ -153,6 +155,8 @@ async function exportSubtitles(): Promise<void> {
 <style scoped>
 .subtitle-overlay { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
 .subtitle-toolbar { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; pointer-events: auto; }
+.subtitle-overlay.fullscreen .subtitle-toolbar { opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+.subtitle-overlay.fullscreen.controls-visible .subtitle-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
 .toolbar-button { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 10px; border: 1px solid rgba(148, 163, 184, .42); border-radius: 8px; color: #f8fafc; background: rgba(2, 6, 23, .82); box-shadow: 0 4px 18px rgba(0, 0, 0, .35); cursor: pointer; font-size: 12px; font-weight: 700; }
 .toolbar-button:hover, .toolbar-button:focus-visible, .icon-button:focus-visible { border-color: #93c5fd; background: #172033; outline: 2px solid transparent; }
 .caption-card { position: absolute; left: 50%; bottom: 18px; display: inline-flex; align-items: center; gap: 8px; max-width: min(78%, 760px); padding: 8px 14px; transform: translateX(-50%); border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px; color: #f8fafc; background: rgba(2, 6, 23, .82); box-shadow: 0 4px 18px rgba(0, 0, 0, .42); line-height: 1.45; text-align: center; cursor: pointer; pointer-events: auto; }

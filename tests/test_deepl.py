@@ -34,6 +34,18 @@ def test_deepl_translate_empty():
     assert provider.translate([], "en", "vi") == []
 
 
+def test_deepl_maps_chinese_ui_codes_to_api_codes():
+    provider = DeepLProvider(api_key="mock-key:fx")
+    response = MagicMock(status_code=200)
+    response.json.return_value = {"translations": [{"text": "简体中文"}]}
+
+    with patch("httpx.post", return_value=response) as mock_post:
+        provider.translate(["繁體中文"], source_language="zh-TW", target_language="zh-CN")
+
+    assert mock_post.call_args.kwargs["json"]["source_lang"] == "ZH"
+    assert mock_post.call_args.kwargs["json"]["target_lang"] == "ZH-HANS"
+
+
 def test_deepl_translate_missing_key():
     provider = DeepLProvider(api_key="")
     with pytest.raises(ValueError, match="API key is not configured"):

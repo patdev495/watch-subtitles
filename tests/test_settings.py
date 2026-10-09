@@ -65,3 +65,11 @@ def test_provider_fields_persist():
         loaded = load_settings(path=path)
         assert loaded.stt_provider == "deepgram"
         assert loaded.translation_provider == "deepl"
+
+
+def test_load_settings_migrates_legacy_chinese_target_code():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "settings.json"
+        path.write_text(json.dumps({"default_target_language": "zh"}), encoding="utf-8")
+
+        assert load_settings(path=path).default_target_language == "zh-CN"

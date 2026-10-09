@@ -1,7 +1,7 @@
 import type { Cue } from '../types';
 
 export const MOCK_LINES: [string, string][] = [
-  ['Hello, welcome to Watch Subtitles Studio.', 'Xin chào, chào mừng đến với Watch Subtitles Studio.'],
+  ['Hello, welcome to the video player.', 'Xin chào, chào mừng đến với trình phát video.'],
   ['This is a demonstration of the bilingual transcript footer.', 'Đây là bản demo của thanh phụ đề song ngữ.'],
   ['Each cue displays the original and translated text.', 'Mỗi dòng cue hiển thị văn bản gốc và bản dịch.'],
   ['Click any cue to seek the video to that moment.', 'Nhấp vào bất kỳ cue nào để tua video đến thời điểm đó.'],

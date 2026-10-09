@@ -20,12 +20,15 @@ class DeepLProvider(TranslationProvider):
             raise ValueError("DeepL API key is not configured.")
 
         base_url = "https://api-free.deepl.com/v2" if self._api_key.strip().endswith(":fx") else "https://api.deepl.com/v2"
-        target_lang = target_language.strip().upper()
-        if target_lang == "EN":
-            target_lang = "EN-US"
-        elif target_lang == "PT":
-            target_lang = "PT-PT"
-        source_lang = source_language.strip().split("-", maxsplit=1)[0].upper()
+        target_code = target_language.strip().lower()
+        target_lang = {
+            "en": "EN-US",
+            "vi": "VI",
+            "zh-cn": "ZH-HANS",
+            "zh-tw": "ZH-HANT",
+        }.get(target_code, target_code.upper())
+        source_code = source_language.strip().lower()
+        source_lang = "ZH" if source_code in {"zh-cn", "zh-tw"} else source_code.upper()
 
         headers = {
             "Authorization": f"DeepL-Auth-Key {self._api_key.strip()}",
