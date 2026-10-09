@@ -11,10 +11,48 @@ class DeepLProvider(TranslationProvider):
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
 
-    def translate(self, texts: Sequence[str], target_language: str) -> Sequence[str]:
-        """Translate batch of texts via DeepL API."""
-        # TODO(issue-06): Implement full translation pipeline
-        raise NotImplementedError("DeepL translation wired in Issue 06")
+    def translate(self, texts: Sequence[str], source_language: str, target_language: str) -> Sequence[str]:
+        """Translate batch of texts via DeepL API preserving sentence boundaries."""
+        if not texts:
+            return []
+
+        if not self._api_key:
+            raise ValueError("DeepL API key is not configured.")
+
+        base_url = "https://api-free.deepl.com/v2" if self._api_key.strip().endswith(":fx") else "https://api.deepl.com/v2"
+        target_lang = target_language.strip().upper()
+        if target_lang == "EN":
+            target_lang = "EN-US"
+        elif target_lang == "PT":
+            target_lang = "PT-PT"
+        source_lang = source_language.strip().split("-", maxsplit=1)[0].upper()
+
+        headers = {
+            "Authorization": f"DeepL-Auth-Key {self._api_key.strip()}",
+            "Content-Type": "application/json",
+        }
+
+        # DeepL accepts up to 50 texts per request
+        batch_size = 50
+        translated: list[str] = []
+
+        for i in range(0, len(texts), batch_size):
+            batch = list(texts[i : i + batch_size])
+            resp = httpx.post(
+                f"{base_url}/translate",
+                headers=headers,
+                json={"text": batch, "source_lang": source_lang, "target_lang": target_lang},
+                timeout=60.0,
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"DeepL translation failed ({resp.status_code}): {resp.text}")
+
+            data = resp.json()
+            translations = data.get("translations", [])
+            for item in translations:
+                translated.append(item.get("text", ""))
+
+        return translated
 
     def validate_key(self, api_key: str) -> bool:
         """Ping DeepL /usage to verify the key is valid (supports Free and Pro keys)."""

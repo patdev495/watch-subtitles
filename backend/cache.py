@@ -3,7 +3,7 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, List, Optional, Sequence
+from typing import Any, Generator, Optional, Sequence
 
 
 def _default_db_path() -> Path:
@@ -14,7 +14,7 @@ def _default_db_path() -> Path:
 
 
 class SubtitleCache:
-    """SQLite-backed subtitle cache keyed by deterministic video fingerprint and target language."""
+    """SQLite Subtitle Cache keyed by video fingerprint and language pair."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = db_path if db_path is not None else _default_db_path()
@@ -32,15 +32,19 @@ class SubtitleCache:
 
     def _init_db(self) -> None:
         with self._connection() as conn:
+            columns = conn.execute("PRAGMA table_info(subtitle_cache)").fetchall()
+            if columns and "source_language" not in {column["name"] for column in columns}:
+                conn.execute("DROP TABLE subtitle_cache")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS subtitle_cache (
                     video_fingerprint TEXT NOT NULL,
+                    source_language TEXT NOT NULL,
                     target_language TEXT NOT NULL,
                     source_filename TEXT,
                     cues_json TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (video_fingerprint, target_language)
+                    PRIMARY KEY (video_fingerprint, source_language, target_language)
                 )
                 """
             )
@@ -49,90 +53,54 @@ class SubtitleCache:
     def save_cues(
         self,
         video_fingerprint: str,
+        source_language: str,
         target_language: str,
         cues: Sequence[Any],
         source_filename: str = "",
     ) -> None:
-        """Persist or update cues for a given video fingerprint and language."""
-        cues_data = [
-            c.model_dump() if hasattr(c, "model_dump")
-            else dict(c) if hasattr(c, "_asdict")
-            else c
-            for c in cues
-        ]
-        cues_json = json.dumps(cues_data, ensure_ascii=False)
-
+        cues_json = json.dumps([
+            cue.model_dump() if hasattr(cue, "model_dump") else dict(cue) if hasattr(cue, "_asdict") else cue
+            for cue in cues
+        ], ensure_ascii=False)
         with self._connection() as conn:
             conn.execute(
                 """
-                INSERT INTO subtitle_cache (video_fingerprint, target_language, source_filename, cues_json)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(video_fingerprint, target_language) DO UPDATE SET
-                    cues_json = excluded.cues_json,
-                    source_filename = excluded.source_filename,
-                    created_at = CURRENT_TIMESTAMP
+                INSERT INTO subtitle_cache (video_fingerprint, source_language, target_language, source_filename, cues_json)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(video_fingerprint, source_language, target_language) DO UPDATE SET
+                    cues_json = excluded.cues_json, source_filename = excluded.source_filename, created_at = CURRENT_TIMESTAMP
                 """,
-                (video_fingerprint, target_language, source_filename, cues_json),
+                (video_fingerprint, source_language, target_language, source_filename, cues_json),
             )
             conn.commit()
 
-    def get_cues(self, video_fingerprint: str, target_language: str) -> Optional[List[dict]]:
-        """Retrieve cues for a given fingerprint and language, or None if not found."""
+    def get_cues(self, video_fingerprint: str, source_language: str, target_language: str) -> Optional[list[dict[str, Any]]]:
         with self._connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT cues_json FROM subtitle_cache
-                WHERE video_fingerprint = ? AND target_language = ?
-                """,
-                (video_fingerprint, target_language),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                return None
-            return json.loads(row["cues_json"])
+            row = conn.execute(
+                "SELECT cues_json FROM subtitle_cache WHERE video_fingerprint = ? AND source_language = ? AND target_language = ?",
+                (video_fingerprint, source_language, target_language),
+            ).fetchone()
+            return json.loads(row["cues_json"]) if row else None
 
-    def has_cues(self, video_fingerprint: str, target_language: str) -> bool:
-        """Check if cached cues exist for the fingerprint and target language."""
-        with self._connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT 1 FROM subtitle_cache
-                WHERE video_fingerprint = ? AND target_language = ?
-                """,
-                (video_fingerprint, target_language),
-            )
-            return cursor.fetchone() is not None
+    def has_cues(self, video_fingerprint: str, source_language: str, target_language: str) -> bool:
+        return self.get_cues(video_fingerprint, source_language, target_language) is not None
 
-    def delete_cues(self, video_fingerprint: str, target_language: Optional[str] = None) -> bool:
-        """Delete cached cues. If target_language is None, delete all entries for fingerprint."""
+    def delete_cues(self, video_fingerprint: str, source_language: Optional[str] = None, target_language: Optional[str] = None) -> bool:
         with self._connection() as conn:
-            if target_language is not None:
-                cursor = conn.execute(
-                    """
-                    DELETE FROM subtitle_cache
-                    WHERE video_fingerprint = ? AND target_language = ?
-                    """,
-                    (video_fingerprint, target_language),
-                )
+            if source_language is None or target_language is None:
+                cursor = conn.execute("DELETE FROM subtitle_cache WHERE video_fingerprint = ?", (video_fingerprint,))
             else:
                 cursor = conn.execute(
-                    """
-                    DELETE FROM subtitle_cache
-                    WHERE video_fingerprint = ?
-                    """,
-                    (video_fingerprint,),
+                    "DELETE FROM subtitle_cache WHERE video_fingerprint = ? AND source_language = ? AND target_language = ?",
+                    (video_fingerprint, source_language, target_language),
                 )
             conn.commit()
             return cursor.rowcount > 0
 
-    def list_cached_languages(self, video_fingerprint: str) -> List[str]:
-        """Return list of target languages cached for this fingerprint."""
+    def list_cached_languages(self, video_fingerprint: str) -> list[tuple[str, str]]:
         with self._connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT target_language FROM subtitle_cache
-                WHERE video_fingerprint = ?
-                """,
+            rows = conn.execute(
+                "SELECT source_language, target_language FROM subtitle_cache WHERE video_fingerprint = ?",
                 (video_fingerprint,),
-            )
-            return [row["target_language"] for row in cursor.fetchall()]
+            ).fetchall()
+            return [(row["source_language"], row["target_language"]) for row in rows]

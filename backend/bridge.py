@@ -1,4 +1,6 @@
 import os
+import threading
+import json
 from typing import Optional, Dict, Any
 from urllib.parse import quote
 import webview
@@ -8,6 +10,8 @@ from backend.providers import STT_PROVIDERS, TRANSLATION_PROVIDERS, TTS_PROVIDER
 from backend.fingerprint import compute_video_fingerprint
 from backend.cache import SubtitleCache
 from backend.audio import extract_audio
+from backend.pipeline import run_subtitling_pipeline
+from backend.export import format_srt, format_vtt
 
 class PingResponse(BaseModel):
     status: str
@@ -29,6 +33,14 @@ class BridgeApi:
         # "CoreWebView2Controller members can only be accessed from the UI thread"
         # spam and AccessibilityObject errors on Windows.
         self._window: Optional[webview.Window] = None
+        self._pipeline_state: Dict[str, Any] = {
+            "status": "idle",
+            "progress": 0.0,
+            "step": "",
+            "cues": [],
+            "error": None,
+        }
+        self._pipeline_lock = threading.Lock()
 
     def set_window(self, window: webview.Window) -> None:
         self._window = window
@@ -129,11 +141,11 @@ class BridgeApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
-    def get_cached_subtitles(self, video_path: str, target_language: str) -> Dict[str, Any]:
+    def get_cached_subtitles(self, video_path: str, source_language: str, target_language: str) -> Dict[str, Any]:
         """Check cache for existing transcript/translation of this video."""
         try:
             fp = compute_video_fingerprint(video_path)
-            cues = self._cache.get_cues(fp, target_language)
+            cues = self._cache.get_cues(fp, source_language, target_language)
             return {
                 "ok": True,
                 "cached": cues is not None,
@@ -143,14 +155,22 @@ class BridgeApi:
         except Exception as exc:
             return {"ok": False, "cached": False, "error": str(exc), "cues": []}
 
+    def get_cached_subtitle_languages(self, video_path: str) -> Dict[str, Any]:
+        """Return all cached language pairs for a video."""
+        try:
+            fingerprint = compute_video_fingerprint(video_path)
+            return {"ok": True, "language_pairs": self._cache.list_cached_languages(fingerprint)}
+        except Exception as exc:
+            return {"ok": False, "language_pairs": [], "error": str(exc)}
+
     def save_cached_subtitles(
-        self, video_path: str, target_language: str, cues: list
+        self, video_path: str, source_language: str, target_language: str, cues: list
     ) -> Dict[str, Any]:
         """Persist generated cues into SQLite cache."""
         try:
             fp = compute_video_fingerprint(video_path)
             filename = os.path.basename(video_path)
-            self._cache.save_cues(fp, target_language, cues, source_filename=filename)
+            self._cache.save_cues(fp, source_language, target_language, cues, source_filename=filename)
             return {"ok": True, "fingerprint": fp}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
@@ -163,3 +183,181 @@ class BridgeApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    # ── Subtitle Export ──────────────────────────────────────────────────────────
+
+    def export_subtitles(
+        self,
+        cues: list,
+        fmt: str = "srt",
+        layout: str = "bilingual",
+    ) -> Dict[str, Any]:
+        """Format cues and write to a user-chosen file via native Save-As dialog.
+
+        Args:
+            cues:   list of cue dicts from the frontend (camelCase keys).
+            fmt:    ``'srt'`` or ``'vtt'``.
+            layout: ``'bilingual'`` | ``'original'`` | ``'translated'``.
+
+        Returns:
+            ``{ok: True, path: <saved_path>}`` or ``{ok: False, error: str}``.
+        """
+        if not cues:
+            return {"ok": False, "error": "Không có phụ đề nào để xuất."}
+
+        fmt = (fmt or "srt").lower().strip()
+        if fmt not in ("srt", "vtt"):
+            return {"ok": False, "error": f"Định dạng không hợp lệ: {fmt!r}"}
+
+        try:
+            if fmt == "srt":
+                content = format_srt(cues, layout=layout)
+                ext = "srt"
+                description = "SubRip Subtitle Files (*.srt)"
+            else:
+                content = format_vtt(cues, layout=layout)
+                ext = "vtt"
+                description = "WebVTT Subtitle Files (*.vtt)"
+        except Exception as exc:
+            return {"ok": False, "error": f"Lỗi khi tạo nội dung subtitle: {exc}"}
+
+        # Native Save-As dialog via pywebview
+        if self._window:
+            try:
+                save_filename = f"subtitles.{ext}"
+                result = self._window.create_file_dialog(
+                    dialog_type=webview.SAVE_DIALOG,
+                    directory="",
+                    save_filename=save_filename,
+                    file_types=(description, "All Files (*.*)"),
+                )
+                if not result:
+                    return {"ok": False, "error": "Người dùng hủy hộp thoại lưu."}
+                save_path: str = result if isinstance(result, str) else result[0]
+            except Exception as exc:
+                return {"ok": False, "error": f"Lỗi hộp thoại lưu file: {exc}"}
+        else:
+            # Headless / test mode: write to temp
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=f".{ext}", delete=False, encoding="utf-8"
+            )
+            save_path = tmp.name
+            tmp.close()
+
+        try:
+            with open(save_path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(content)
+            return {"ok": True, "path": save_path}
+        except Exception as exc:
+            return {"ok": False, "error": f"Lỗi ghi file: {exc}"}
+
+    # ── Pipeline Generation ──────────────────────────────────────────────────────
+
+    def start_subtitles_pipeline(self, video_path: str, source_language: str, target_language: str, force: bool = False) -> Dict[str, Any]:
+        """Launch subtitling pipeline asynchronously in background thread."""
+        if not os.path.exists(video_path):
+            return {"ok": False, "error": f"Video file not found: {video_path}"}
+
+        settings = load_settings()
+        stt_name = settings.stt_provider or "deepgram"
+        trans_name = settings.translation_provider or "deepl"
+
+        stt_cls = STT_PROVIDERS.get(stt_name)
+        if not stt_cls:
+            return {"ok": False, "error": f"STT Provider '{stt_name}' not registered"}
+
+        trans_cls = TRANSLATION_PROVIDERS.get(trans_name)
+        if not trans_cls:
+            return {"ok": False, "error": f"Translation Provider '{trans_name}' not registered"}
+
+        # Check API keys
+        stt_key = settings.deepgram_api_key if stt_name == "deepgram" else "custom-key"
+        if not stt_key:
+            return {"ok": False, "error": "Chưa cấu hình API key cho Deepgram trong Cài đặt."}
+
+        trans_key = settings.deepl_api_key if trans_name == "deepl" else "custom-key"
+        if not trans_key:
+            return {"ok": False, "error": "Chưa cấu hình API key cho DeepL trong Cài đặt."}
+
+        stt_provider = stt_cls(stt_key)
+        trans_provider = trans_cls(trans_key)
+
+        with self._pipeline_lock:
+            self._pipeline_state = {
+                "status": "running",
+                "progress": 0.0,
+                "step": "Đang khởi tạo quy trình...",
+                "cues": [],
+                "error": None,
+            }
+
+        worker_thread = threading.Thread(
+            target=self._run_pipeline_worker,
+            args=(video_path, source_language, target_language, stt_provider, trans_provider, force),
+            daemon=True,
+        )
+        worker_thread.start()
+
+        return {"ok": True, "message": "Pipeline started"}
+
+    def get_pipeline_status(self) -> Dict[str, Any]:
+        """Query current state of running subtitle pipeline."""
+        with self._pipeline_lock:
+            return dict(self._pipeline_state)
+
+    def _emit_progress_to_window(self, state: Dict[str, Any]) -> None:
+        """Deliver progress event into WebView2 UI thread safely."""
+        if not self._window:
+            return
+        try:
+            payload_json = json.dumps(state)
+            js_code = (
+                f"window.dispatchEvent(new CustomEvent('pipeline-progress', "
+                f"{{ detail: {payload_json} }}));"
+            )
+            self._window.evaluate_js(js_code)
+        except Exception:
+            pass
+
+    def _run_pipeline_worker(
+        self,
+        video_path: str,
+        source_language: str,
+        target_language: str,
+        stt_provider: Any,
+        trans_provider: Any,
+        force: bool,
+    ) -> None:
+        """Background execution worker for subtitle pipeline."""
+        def on_progress(pct: float, step: str) -> None:
+            with self._pipeline_lock:
+                self._pipeline_state["progress"] = pct
+                self._pipeline_state["step"] = step
+                curr_state = dict(self._pipeline_state)
+            self._emit_progress_to_window(curr_state)
+
+        try:
+            cues = run_subtitling_pipeline(
+                video_path=video_path,
+                source_language=source_language,
+                target_language=target_language,
+                stt_provider=stt_provider,
+                translation_provider=trans_provider,
+                cache=self._cache,
+                on_progress=on_progress,
+                force=force,
+            )
+            with self._pipeline_lock:
+                self._pipeline_state["status"] = "completed"
+                self._pipeline_state["progress"] = 100.0
+                self._pipeline_state["step"] = "Hoàn thành!"
+                self._pipeline_state["cues"] = cues
+                curr_state = dict(self._pipeline_state)
+            self._emit_progress_to_window(curr_state)
+        except Exception as exc:
+            with self._pipeline_lock:
+                self._pipeline_state["status"] = "error"
+                self._pipeline_state["error"] = str(exc)
+                self._pipeline_state["step"] = f"Lỗi: {exc}"
+                curr_state = dict(self._pipeline_state)
+            self._emit_progress_to_window(curr_state)

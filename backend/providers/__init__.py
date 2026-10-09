@@ -4,7 +4,7 @@ Adding a new provider:
   1. Create a concrete class implementing STTProvider or TranslationProvider.
   2. Register it here.
 """
-from .base import STTProvider, TranslationProvider, TTSProvider
+from .base import STTProvider, TranslationProvider, TTSProvider, TranscriptionProvider
 from .deepgram import DeepgramProvider
 from .deepl import DeepLProvider
 
@@ -33,6 +33,7 @@ def register_tts_provider(name: str, cls: type[TTSProvider]) -> None:
 
 __all__ = [
     "STTProvider",
+    "TranscriptionProvider",
     "TranslationProvider",
     "TTSProvider",
     "DeepgramProvider",

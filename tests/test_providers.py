@@ -27,7 +27,7 @@ class MockCustomTranslation(TranslationProvider):
     def __init__(self, api_key: str = "") -> None:
         self.api_key = api_key
 
-    def translate(self, texts: Sequence[str], target_language: str) -> Sequence[str]:
+    def translate(self, texts: Sequence[str], source_language: str, target_language: str) -> Sequence[str]:
         return [f"[{target_language}] {t}" for t in texts]
 
     def validate_key(self, api_key: str) -> bool:
@@ -58,7 +58,7 @@ def test_translation_provider_extensibility():
     assert "custom_trans" in TRANSLATION_PROVIDERS
     instance = TRANSLATION_PROVIDERS["custom_trans"]()
     assert instance.validate_key("valid-trans-key") is True
-    res = instance.translate(["Hello"], "vi")
+    res = instance.translate(["Hello"], "en", "vi")
     assert res == ["[vi] Hello"]
 
 

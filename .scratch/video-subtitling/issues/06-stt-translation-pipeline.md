@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Issue 06: STT & Translation Pipeline with Progress Bar
 

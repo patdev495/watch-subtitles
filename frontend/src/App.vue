@@ -5,84 +5,42 @@ import HeaderBar from './components/HeaderBar.vue';
 import VideoPlayer from './components/VideoPlayer.vue';
 import TranscriptFooter from './components/TranscriptFooter.vue';
 import SettingsModal from './components/SettingsModal.vue';
-import type { VideoDialogResponse, AppSettings, Cue } from './types';
+import PipelineProgressBar from './components/PipelineProgressBar.vue';
+import { getMockCues } from './fixtures/mockCues';
+import type { VideoDialogResponse, AppSettings, Cue, PipelineStatus } from './types';
 
 // ── Video state ──────────────────────────────────────────────────────────────
 
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
+const currentFilePath = ref<string>('');
 const backendConnected = ref<boolean>(false);
 const isDragging = ref<boolean>(false);
 
 const currentTime = ref<number>(0);
 const duration = ref<number>(0);
 
+// ── Pipeline & Subtitle state ────────────────────────────────────────────────
+
+const sourceLanguage = ref<string>('en');
+const targetLanguage = ref<string>('vi');
+const hasSubtitles = ref<boolean>(false);
+const isGenerating = ref<boolean>(false);
+const showPipelineProgress = ref<boolean>(false);
+const pipelineStatus = ref<PipelineStatus>({
+  status: 'idle',
+  progress: 0,
+  step: '',
+  cues: [],
+  error: null,
+});
+
 // ── Cue / Transcript state ───────────────────────────────────────────────────
 
 const cues = ref<Cue[]>([]);
 
 function loadMockCues(): void {
-  const lines = [
-    ['Hello, welcome to Watch Subtitles Studio.', 'Xin chào, chào mừng đến với Watch Subtitles Studio.'],
-    ['This is a demonstration of the bilingual transcript footer.', 'Đây là bản demo của thanh phụ đề song ngữ.'],
-    ['Each cue displays the original and translated text.', 'Mỗi dòng cue hiển thị văn bản gốc và bản dịch.'],
-    ['Click any cue to seek the video to that moment.', 'Nhấp vào bất kỳ cue nào để tua video đến thời điểm đó.'],
-    ['The active cue is highlighted automatically.', 'Cue đang phát được tô sáng tự động.'],
-    ['Auto-scroll keeps the active cue in view.', 'Cuộn tự động giữ cue đang phát trong tầm nhìn.'],
-    ['You can also drag and drop a video file onto this window.', 'Bạn cũng có thể kéo thả tệp video vào cửa sổ này.'],
-    ['The backend is powered by Python with UV.', 'Backend được chạy bằng Python với UV.'],
-    ['Deepgram handles speech-to-text transcription.', 'Deepgram xử lý chuyển đổi giọng nói thành văn bản.'],
-    ['DeepL handles bilingual translation.', 'DeepL xử lý dịch song ngữ.'],
-    ['Configure your API keys in Settings.', 'Cấu hình API key của bạn trong Cài đặt.'],
-    ['The app will cache subtitles by video fingerprint.', 'Ứng dụng sẽ cache phụ đề theo video fingerprint.'],
-    ['You won\'t be charged twice for the same video.', 'Bạn sẽ không bị tính phí hai lần cho cùng một video.'],
-    ['Subtitles can be exported as .srt or .vtt files.', 'Phụ đề có thể xuất ra dưới dạng .srt hoặc .vtt.'],
-    ['The transcript is fully interactive.', 'Bản ghi là hoàn toàn tương tác.'],
-    ['Seek precisely by clicking any cue.', 'Tua chính xác bằng cách nhấp vào bất kỳ cue nào.'],
-    ['This mock fixture demonstrates 50+ cues loading.', 'Fixture mock này minh họa tải hơn 50 cues.'],
-    ['The composable useTranscript handles cue detection.', 'Composable useTranscript xử lý phát hiện cue.'],
-    ['TDD tests cover boundary conditions and reactivity.', 'TDD tests bao phủ điều kiện biên và tính phản ứng.'],
-    ['New providers can be added to the registry.', 'Các provider mới có thể được thêm vào registry.'],
-    ['The provider abstraction ensures loose coupling.', 'Trừu tượng hóa provider đảm bảo kết nối lỏng.'],
-    ['This architecture supports future extensions easily.', 'Kiến trúc này hỗ trợ mở rộng trong tương lai dễ dàng.'],
-    ['TypeScript ensures type safety across the entire frontend.', 'TypeScript đảm bảo an toàn kiểu trên toàn bộ frontend.'],
-    ['Pydantic models enforce types on the Python backend.', 'Pydantic models thực thi kiểu trên Python backend.'],
-    ['The desktop runs as a native window via pywebview.', 'Ứng dụng desktop chạy như cửa sổ native qua pywebview.'],
-    ['Video streaming uses HTTP range requests.', 'Phát video sử dụng HTTP range requests.'],
-    ['Large video files are streamed efficiently.', 'Các tệp video lớn được phát trực tuyến hiệu quả.'],
-    ['The bilingual display helps language learners.', 'Màn hình song ngữ giúp người học ngôn ngữ.'],
-    ['Original subtitles appear on top, translations below.', 'Phụ đề gốc xuất hiện ở trên, bản dịch ở dưới.'],
-    ['End-exclusive cue boundaries prevent overlap.', 'Ranh giới cue cuối độc quyền ngăn chặn chồng chéo.'],
-    ['The gear icon opens the settings panel.', 'Biểu tượng bánh răng mở bảng cài đặt.'],
-    ['Settings are persisted across restarts.', 'Cài đặt được lưu trữ qua các lần khởi động lại.'],
-    ['A test connection button validates your API keys.', 'Nút kiểm tra kết nối xác thực API key của bạn.'],
-    ['Video fingerprinting uses content hashing.', 'Video fingerprinting sử dụng content hashing.'],
-    ['The subtitle cache avoids duplicate API calls.', 'Subtitle cache tránh các lần gọi API trùng lặp.'],
-    ['Audio is extracted locally before sending to Deepgram.', 'Âm thanh được trích xuất cục bộ trước khi gửi đến Deepgram.'],
-    ['Only the audio track is transmitted externally.', 'Chỉ có audio track được truyền ra ngoài.'],
-    ['This preserves video privacy.', 'Điều này bảo vệ quyền riêng tư video.'],
-    ['Each cue has a unique ID, start and end time.', 'Mỗi cue có ID duy nhất, thời gian bắt đầu và kết thúc.'],
-    ['Cue IDs enable stable reference across sessions.', 'ID cue cho phép tham chiếu ổn định qua các phiên.'],
-    ['The interactive footer scrolls horizontally.', 'Thanh footer tương tác cuộn theo chiều ngang.'],
-    ['Active cue auto-scrolls into view smoothly.', 'Cue đang phát tự động cuộn mượt vào tầm nhìn.'],
-    ['The transcript is read-only during playback.', 'Bản ghi chỉ đọc trong khi phát.'],
-    ['Click-to-seek is the primary navigation gesture.', 'Click-to-seek là thao tác điều hướng chính.'],
-    ['The app targets non-technical video consumers.', 'Ứng dụng nhắm đến người tiêu thụ video không chuyên kỹ thuật.'],
-    ['A clean UI reduces cognitive load.', 'Giao diện sạch giảm tải nhận thức.'],
-    ['Dark theme reduces eye strain during long sessions.', 'Chủ đề tối giảm mỏi mắt trong các phiên dài.'],
-    ['Glassmorphism cards give a premium feel.', 'Thẻ glassmorphism mang lại cảm giác cao cấp.'],
-    ['Indigo accent color ties the design together.', 'Màu accent indigo liên kết thiết kế lại.'],
-    ['This is cue number 49 of 50 mock cues.', 'Đây là cue số 49 trong 50 mock cues.'],
-    ['End of mock fixture demonstration.', 'Kết thúc bản demo mock fixture.'],
-  ];
-
-  cues.value = lines.map((pair, i) => ({
-    id: String(i + 1),
-    start: i * 4,
-    end: (i + 1) * 4,
-    originalText: pair[0],
-    translatedText: pair[1],
-  }));
+  cues.value = getMockCues();
 }
 
 // ── Settings state ───────────────────────────────────────────────────────────
@@ -137,6 +95,143 @@ async function checkBackendBridge(): Promise<void> {
 
 // ── Video file handling ──────────────────────────────────────────────────────
 
+async function loadSubtitlesForVideo(filePath: string, source: string, target: string): Promise<void> {
+  hasSubtitles.value = false;
+  if (window.pywebview?.api && filePath) {
+    try {
+      const pairs = await window.pywebview.api.get_cached_subtitle_languages(filePath);
+      hasSubtitles.value = pairs.ok && pairs.language_pairs.length > 0;
+      const res = await window.pywebview.api.get_cached_subtitles(filePath, source, target);
+      if (res.cached && res.cues && res.cues.length > 0) {
+        cues.value = res.cues;
+        return;
+      }
+    } catch (err) {
+      console.warn('Error reading subtitle cache:', err);
+    }
+  }
+  loadMockCues();
+}
+
+async function handleGenerateSubtitles(source: string, target: string): Promise<void> {
+  if (!currentFilePath.value && !window.pywebview?.api) {
+    // Dev browser simulation
+    isGenerating.value = true;
+    showPipelineProgress.value = true;
+    pipelineStatus.value = {
+      status: 'running',
+      progress: 20,
+      step: 'Đang trích xuất audio (Mô phỏng)...',
+      cues: [],
+      error: null,
+    };
+    setTimeout(() => {
+      pipelineStatus.value = {
+        status: 'running',
+        progress: 60,
+        step: 'Đang nhận diện Deepgram (Mô phỏng)...',
+        cues: [],
+        error: null,
+      };
+    }, 600);
+    setTimeout(() => {
+      pipelineStatus.value = {
+        status: 'completed',
+        progress: 100,
+        step: 'Hoàn thành!',
+        cues: getMockCues(),
+        error: null,
+      };
+      cues.value = getMockCues();
+      isGenerating.value = false;
+    }, 1200);
+    return;
+  }
+
+  if (!currentFilePath.value) {
+    alert('Vui lòng chọn video trước khi tạo phụ đề.');
+    return;
+  }
+
+  isGenerating.value = true;
+  showPipelineProgress.value = true;
+  pipelineStatus.value = {
+    status: 'running',
+    progress: 5,
+    step: 'Đang khởi động quy trình...',
+    cues: [],
+    error: null,
+  };
+
+  const progressHandler = (e: Event) => {
+    const detail = (e as CustomEvent).detail as PipelineStatus;
+    if (detail) {
+      pipelineStatus.value = detail;
+      if (detail.status === 'completed') {
+        cues.value = detail.cues;
+        isGenerating.value = false;
+        window.removeEventListener('pipeline-progress', progressHandler);
+      } else if (detail.status === 'error') {
+        isGenerating.value = false;
+        window.removeEventListener('pipeline-progress', progressHandler);
+      }
+    }
+  };
+  window.addEventListener('pipeline-progress', progressHandler);
+
+  if (window.pywebview?.api) {
+    try {
+      const res = await window.pywebview.api.start_subtitles_pipeline(currentFilePath.value, source, target, true);
+      if (!res.ok) {
+        isGenerating.value = false;
+        pipelineStatus.value = {
+          status: 'error',
+          progress: 0,
+          step: 'Lỗi',
+          cues: [],
+          error: res.error || 'Không thể khởi động pipeline.',
+        };
+        window.removeEventListener('pipeline-progress', progressHandler);
+        return;
+      }
+
+      const pollTimer = setInterval(async () => {
+        if (!isGenerating.value) {
+          clearInterval(pollTimer);
+          return;
+        }
+        try {
+          const st = await window.pywebview?.api?.get_pipeline_status();
+          if (st) {
+            pipelineStatus.value = st;
+            if (st.status === 'completed') {
+              cues.value = st.cues;
+              hasSubtitles.value = true;
+              isGenerating.value = false;
+              clearInterval(pollTimer);
+            } else if (st.status === 'error') {
+              isGenerating.value = false;
+              clearInterval(pollTimer);
+            }
+          }
+        } catch {
+          clearInterval(pollTimer);
+        }
+      }, 500);
+    } catch (err) {
+      isGenerating.value = false;
+      pipelineStatus.value = {
+        status: 'error',
+        progress: 0,
+        step: 'Lỗi',
+        cues: [],
+        error: String(err),
+      };
+      window.removeEventListener('pipeline-progress', progressHandler);
+    }
+  }
+}
+
 async function handleOpenVideo(): Promise<void> {
   if (!window.pywebview?.api) {
     const input = document.createElement('input');
@@ -159,7 +254,8 @@ async function handleOpenVideo(): Promise<void> {
     if (!res.cancelled && res.stream_url && res.filename) {
       videoSrc.value = res.stream_url;
       currentFilename.value = res.filename;
-      loadMockCues();
+      currentFilePath.value = res.path || '';
+      await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, targetLanguage.value);
     }
   } catch (err) {
     console.error('Lỗi khi mở video:', err);
@@ -195,7 +291,8 @@ async function handleDrop(event: DragEvent): Promise<void> {
       if (!res.cancelled && res.stream_url) {
         videoSrc.value = res.stream_url;
         currentFilename.value = res.filename ?? file.name;
-        loadMockCues();
+        currentFilePath.value = anyFile.path;
+        await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, targetLanguage.value);
         return;
       }
     } catch (err) {
@@ -215,12 +312,6 @@ function handleDragOver(event: DragEvent): void {
 
 function handleDragLeave(): void {
   isDragging.value = false;
-}
-
-function handleSeek(time: number): void {
-  // VideoPlayer exposes a seek method via template ref in a future issue.
-  // For now emit through currentTime — VideoPlayer will handle seek in Issue 05.
-  currentTime.value = time;
 }
 
 onMounted(() => {
@@ -245,11 +336,16 @@ onMounted(() => {
 
     <!-- Header bar -->
     <HeaderBar
+      v-model:source-language="sourceLanguage"
+      v-model:target-language="targetLanguage"
       :current-filename="currentFilename"
       :backend-connected="backendConnected"
+      :is-generating="isGenerating"
+      :has-subtitles="hasSubtitles"
       @open-video="handleOpenVideo"
       @ping-backend="handlePingBackend"
       @open-settings="settingsOpen = true"
+      @generate-subtitles="handleGenerateSubtitles"
     />
 
     <!-- Main Workspace -->
@@ -263,15 +359,20 @@ onMounted(() => {
           @durationchange="d => duration = d"
           @open-file="handleOpenVideo"
         />
+        <TranscriptFooter
+          :cues="cues"
+          :current-time="currentTime"
+          :source-language="sourceLanguage"
+          :target-language="targetLanguage"
+        />
       </section>
-
-      <!-- Interactive Transcript Footer -->
-      <TranscriptFooter
-        :cues="cues"
-        :current-time="currentTime"
-        @seek="handleSeek"
-      />
     </main>
+
+    <!-- Pipeline Progress Modal -->
+    <PipelineProgressBar
+      v-model="showPipelineProgress"
+      :status="pipelineStatus"
+    />
 
     <!-- Settings Modal -->
     <SettingsModal
@@ -304,6 +405,7 @@ onMounted(() => {
 
 .player-wrapper {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;

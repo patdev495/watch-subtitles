@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Issue 07: Bilingual Subtitle Export (.SRT / .VTT)
 

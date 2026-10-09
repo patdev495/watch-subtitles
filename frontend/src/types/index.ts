@@ -47,6 +47,21 @@ export interface AudioExtractionResponse {
   error?: string;
 }
 
+export interface ExportSubtitlesResponse {
+  ok: boolean;
+  path?: string;
+  error?: string;
+}
+
+
+export interface PipelineStatus {
+  status: 'idle' | 'running' | 'completed' | 'error';
+  progress: number;
+  step: string;
+  cues: Cue[];
+  error?: string | null;
+}
+
 export interface PyWebViewApi {
   ping: () => Promise<PingResponse>;
   open_video_dialog: () => Promise<VideoDialogResponse>;
@@ -59,9 +74,17 @@ export interface PyWebViewApi {
     api_key: string,
   ) => Promise<TestConnectionResponse>;
   get_video_fingerprint: (video_path: string) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
-  get_cached_subtitles: (video_path: string, target_language: string) => Promise<CachedSubtitlesResponse>;
-  save_cached_subtitles: (video_path: string, target_language: string, cues: Cue[]) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
+  get_cached_subtitles: (video_path: string, source_language: string, target_language: string) => Promise<CachedSubtitlesResponse>;
+  get_cached_subtitle_languages: (video_path: string) => Promise<{ ok: boolean; language_pairs: [string, string][]; error?: string }>;
+  save_cached_subtitles: (video_path: string, source_language: string, target_language: string, cues: Cue[]) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
   extract_video_audio: (video_path: string) => Promise<AudioExtractionResponse>;
+  start_subtitles_pipeline: (video_path: string, source_language: string, target_language: string, force?: boolean) => Promise<{ ok: boolean; message?: string; error?: string }>;
+  get_pipeline_status: () => Promise<PipelineStatus>;
+  export_subtitles: (
+    cues: Cue[],
+    fmt: 'srt' | 'vtt',
+    layout: 'bilingual' | 'original' | 'translated',
+  ) => Promise<ExportSubtitlesResponse>;
 }
 
 declare global {

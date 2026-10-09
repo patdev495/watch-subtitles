@@ -227,7 +227,6 @@ defineExpose({ seekTo });
 .video-core {
   width: 100%;
   height: 100%;
-  max-height: 60vh;
   object-fit: contain;
 }
 

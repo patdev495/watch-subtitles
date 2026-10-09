@@ -26,11 +26,14 @@ class STTProvider(ABC):
         ...
 
 
+TranscriptionProvider = STTProvider
+
+
 class TranslationProvider(ABC):
     """Abstract translation provider. Swap implementations without changing callers."""
 
     @abstractmethod
-    def translate(self, texts: Sequence[str], target_language: str) -> Sequence[str]:
+    def translate(self, texts: Sequence[str], source_language: str, target_language: str) -> Sequence[str]:
         """Translate a batch of strings. Returns same-length list of translated strings."""
         ...
 
@@ -52,4 +55,3 @@ class TTSProvider(ABC):
     def validate_key(self, api_key: str) -> bool:
         """Lightweight credential check. Returns True if key appears valid."""
         ...
-
