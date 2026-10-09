@@ -6,10 +6,25 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional, Union
+import sys
+
+
+def _bundled_ffmpeg_path() -> Path | None:
+    """Return the FFmpeg binary extracted from a PyInstaller bundle, if present."""
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if not bundle_root:
+        return None
+    executable_name = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    candidate = Path(bundle_root) / executable_name
+    return candidate if candidate.is_file() else None
 
 
 def get_ffmpeg_path() -> str:
     """Return path to ffmpeg executable, or raise RuntimeError if missing."""
+    bundled_path = _bundled_ffmpeg_path()
+    if bundled_path is not None:
+        return str(bundled_path)
+
     custom_path = os.environ.get("FFMPEG_PATH")
     if custom_path and os.path.exists(custom_path):
         return custom_path
@@ -56,7 +71,10 @@ def extract_audio(
         str(dest),
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    run_options: dict[str, object] = {"capture_output": True, "text": True}
+    if os.name == "nt":
+        run_options["creationflags"] = subprocess.CREATE_NO_WINDOW
+    result = subprocess.run(cmd, **run_options)
     if result.returncode != 0:
         raise RuntimeError(f"FFmpeg extraction failed (code {result.returncode}): {result.stderr}")
 

@@ -4,7 +4,18 @@ import subprocess
 import tempfile
 from pathlib import Path
 import pytest
+import backend.audio as audio
 from backend.audio import extract_audio, extract_audio_async, get_ffmpeg_path
+
+
+def test_get_ffmpeg_path_uses_bundled_binary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    bundled_binary = tmp_path / "ffmpeg.exe"
+    bundled_binary.touch()
+    monkeypatch.setattr(audio.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.delenv("FFMPEG_PATH", raising=False)
+    monkeypatch.setattr(audio.shutil, "which", lambda _: None)
+
+    assert get_ffmpeg_path() == str(bundled_binary)
 
 
 def test_get_ffmpeg_path_found():
