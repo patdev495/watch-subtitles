@@ -13,6 +13,21 @@ export interface VideoDialogResponse {
   stream_url?: string;
 }
 
+export interface PlaybackVideo {
+  path: string;
+  filename: string;
+  sourceLanguage?: string;
+  cachedPairs?: [string, string][];
+  error?: string;
+}
+
+export interface PlaybackQueueState {
+  videos: { path: string; source_language: string }[];
+  selected_path: string;
+  playback_time: number;
+  auto_advance: boolean;
+}
+
 export interface PingResponse {
   status: string;
   message: string;
@@ -27,6 +42,14 @@ export interface AppSettings {
   translation_provider: string;
   tts_provider?: string;
   tts_api_key?: string;
+}
+
+export type SubtitleLine = 'original' | 'originalPinyin' | 'translated' | 'translatedPinyin';
+
+export interface SubtitleDisplayPreferences {
+  primary_line: 'original' | 'translated';
+  overlay_visible: boolean;
+  lines: Record<SubtitleLine, { visible: boolean; font_size: number }>;
 }
 
 export interface TestConnectionResponse {
@@ -88,9 +111,15 @@ export interface SubtitleJobResponse {
 export interface PyWebViewApi {
   ping: () => Promise<PingResponse>;
   open_video_dialog: () => Promise<VideoDialogResponse>;
+  open_video_files_dialog: () => Promise<{ cancelled: boolean; videos: VideoDialogResponse[] }>;
+  open_video_folder_dialog: () => Promise<{ cancelled: boolean; videos: VideoDialogResponse[] }>;
+  get_playback_queue: () => Promise<PlaybackQueueState>;
+  save_playback_queue: (state: PlaybackQueueState) => Promise<PlaybackQueueState>;
   load_video_path: (path: string) => Promise<VideoDialogResponse>;
   get_settings: () => Promise<AppSettings>;
   save_settings: (data: AppSettings) => Promise<AppSettings>;
+  get_subtitle_display_preferences: () => Promise<SubtitleDisplayPreferences>;
+  save_subtitle_display_preferences: (data: SubtitleDisplayPreferences) => Promise<SubtitleDisplayPreferences>;
   test_connection: (
     provider_type: 'stt' | 'translation' | 'tts',
     provider_name: string,
@@ -99,6 +128,7 @@ export interface PyWebViewApi {
   get_video_fingerprint: (video_path: string) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
   get_cached_subtitles: (video_path: string, source_language: string, target_language: string) => Promise<CachedSubtitlesResponse>;
   get_cached_subtitle_languages: (video_path: string) => Promise<{ ok: boolean; language_pairs: [string, string][]; error?: string }>;
+  get_latest_cached_subtitles: (video_path: string) => Promise<CachedSubtitlesResponse & { source_language?: string; target_language?: string }>;
   save_cached_subtitles: (video_path: string, source_language: string, target_language: string, cues: Cue[]) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
   extract_video_audio: (video_path: string) => Promise<AudioExtractionResponse>;
   start_subtitles_pipeline: (video_path: string, source_language: string, target_language: string, force?: boolean) => Promise<{ ok: boolean; message?: string; error?: string }>;

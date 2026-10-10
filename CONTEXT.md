@@ -61,27 +61,43 @@ The local persistent store that preserves generated Cues keyed by Video Fingerpr
 _Avoid_: Local storage, database, project file
 
 **Subtitle Job**:
-A request to generate Original and Translated Subtitles for one Video and one selected Source Language–Target Language pair.
+A request to generate Original and Translated Subtitles for one Video and one selected Source Language–Target Language pair. Jobs not completed when the application closes stop, while completed Subtitle Cache data remains available.
 _Avoid_: Translation task, pipeline run, background task
 
-**Subtitle Queue**:
-The in-memory ordered list of unique Subtitle Jobs awaiting sequential processing during one application session. It does not contain a job already queued or running for the same Video and language pair, but can contain jobs for different language pairs of the same Video.
-_Avoid_: Translation queue, processing list, job list
+**Playback Queue**:
+The ordered list of Videos available to play across application launches. It is also the sole collection from which Subtitle Jobs may be requested; adding a Video does not create a Subtitle Job, and selecting a Video for playback does not remove it from the Playback Queue. Selecting a Video loads and plays it. Removing the Video currently playing stops playback and selects the next queued Video, or leaves the player empty when none remains, but never cancels that Video's Subtitle Jobs. On restoration, missing Video paths are omitted, and the last selected Video resumes at its saved playback time. A Video that cannot play remains in the queue with an error, but Auto-advance skips it.
+_Avoid_: Subtitle Queue, playlist, pending job
 
-**Queued Video**:
-A Video registered on the Queue Screen for possible subtitle generation. It is separate from the Video selected for playback and does not become a Subtitle Job until generation is requested.
-_Avoid_: Playlist item, pending job, background video
+**Queue Import**:
+The addition of one or more unique Videos to the end of the Playback Queue by choosing video files or a folder in the operating-system dialog. Multi-file selection preserves the user's chosen order. A folder import includes only supported video files directly inside that folder, not its subfolders, sorted by filename from A to Z. An attempted duplicate is not added and reports “Video đã trong hàng đợi rồi.”
+_Avoid_: Upload, scan
 
-**Queue Screen**:
-The dedicated application screen for managing Queued Videos and Subtitle Jobs without changing the Video currently selected for playback.
-_Avoid_: Queue popup, task drawer, batch screen
+**Auto-advance**:
+An optional playback setting, enabled by default on first use and then restored from the user's saved preference, that loads and plays the next Video in the Playback Queue when the current Video ends.
+_Avoid_: Autoplay, continuous play
+
+**Subtitle Availability**:
+The set of Source Language–Target Language pairs for which a Video has cached subtitles. It is presented on that Video in the Playback Queue as one or more language pairs.
+_Avoid_: Has subtitles, subtitle status
+
+**Active Subtitles**:
+The most recently created cached subtitle pair for the Video currently playing. If no pair exists, playback has no subtitles.
+_Avoid_: Selected subtitles, current language pair
+
+**Subtitle Display Preferences**:
+The user's saved, application-wide choices for showing subtitle lines and their font sizes in the player. The video overlay shows one primary line (Original Subtitle or Translated Subtitle), while the player display panel shows both. These preferences are restored across application launches and are separate from Subtitle Job creation.
+_Avoid_: Subtitle generation settings, caption style
+
+**Subtitle Generation Modal**:
+The dialog that lists Playback Queue Videos for initiating Subtitle Jobs. It may close while jobs run in the background and reopens with their progress. The matching Video row in the Playback Queue also shows that progress. It supports creating a job for one selected Video or for all eligible Videos, with a separately editable Source Language–Target Language pair for each Video. “Create all” creates jobs only for Videos without Subtitle Availability for their selected pair, in Playback Queue order. Rows with waiting or processing jobs for their selected pair cannot create duplicates; failed jobs can be retried.
+_Avoid_: Subtitle Queue, generation screen
 
 **Target Language**:
 The chosen language into which the original subtitles are translated.
 _Avoid_: Destination language, output dialect
 
 **Source Language**:
-The language selected by the user for the spoken dialogue in a Video.
+The language selected by the user for the spoken dialogue in a Video. A Video in the Playback Queue retains its own Source Language and it is configured in the Subtitle Generation Modal.
 _Avoid_: Input language, detected language
 
 **Subtitle Export**:
@@ -99,13 +115,12 @@ _Avoid_: Password, license key
 - If not cached, the **Video** yields an **Audio Track** that is dispatched to a **Transcription Provider** using an **API Credential** to produce a sequence of **Cue** items with **Original Subtitle** text
 - Each **Cue** has its **Original Subtitle** dispatched from the chosen **Source Language** to a **Translation Provider** to generate a matching **Translated Subtitle** in the chosen **Target Language**
 - Completed **Cue** items are stored into the **Subtitle Cache** under the **Video Fingerprint**
-- A **Queued Video** becomes a **Subtitle Job** when the user requests generation for it, individually or for all eligible Queued Videos
+- A **Video** in the **Playback Queue** becomes a **Subtitle Job** when the user requests generation for it in the **Subtitle Generation Modal**, individually or for all eligible Videos
 - A **Subtitle Job** retains the Source Language and Target Language selected when generation was requested
-- A **Subtitle Job** enters the **Subtitle Queue** and is processed one at a time without changing the Video currently selected for playback
-- The **Subtitle Queue** processes jobs in first-in, first-out order; the user can remove a waiting job and create it again to place it at the end
+- **Subtitle Jobs** are processed one at a time in first-in, first-out order without changing the Video currently selected for playback
 - A failed **Subtitle Job** is reported to the user and does not prevent the next **Subtitle Job** from being processed
-- The user can retry a failed **Subtitle Job**, which enters the end of the **Subtitle Queue** with its original language pair
-- A **Queued Video** remains on the **Queue Screen** after its Subtitle Job completes or fails, until the user removes it or the application session ends; a running Subtitle Job cannot be removed
+- The user can retry a failed **Subtitle Job**, which enters the end of the processing order with its original language pair
+- A **Video** remains in the **Playback Queue** after its Subtitle Job completes or fails, until the user removes it; removing it does not cancel any of its Subtitle Jobs
 - The **Interactive Transcript Footer** renders one current active **Cue** as its **Bilingual Display** during video playback or seeking
 - The user can trigger a **Subtitle Export** to save the synchronized bilingual cues to an `.srt` or `.vtt` file on disk
 

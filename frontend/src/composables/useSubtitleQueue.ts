@@ -1,10 +1,10 @@
 import { computed, ref, type Ref } from 'vue';
-import type { SubtitleJob } from '../types';
-import type { QueuedVideo, QueueGenerationRequest } from '../components/QueueScreen.vue';
+import type { PlaybackVideo, SubtitleJob } from '../types';
+
+export interface QueueGenerationRequest { video: PlaybackVideo; source: string; target: string; force: boolean }
 
 export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: SubtitleJob, previous?: SubtitleJob) => void, isGenerating: Ref<boolean>) {
-  const activeScreen = ref<'player' | 'queue'>('player');
-  const queuedVideos = ref<QueuedVideo[]>([]);
+  const queuedVideos = ref<PlaybackVideo[]>([]);
   const subtitleJobs = ref<SubtitleJob[]>([]);
   const activeMainJob = computed(() => subtitleJobs.value.find(
     (job) => job.video_path === currentPath.value && ['waiting', 'processing'].includes(job.status),
@@ -30,7 +30,8 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
     if (result?.ok) subtitleJobs.value = result.jobs;
   }
 
-  async function createSubtitleJob(video: QueuedVideo, source: string, target: string, force = false): Promise<void> {
+  async function createSubtitleJob(video: PlaybackVideo, source: string, target: string, force = false): Promise<void> {
+    if (subtitleJobs.value.some((job) => job.video_path === video.path && job.source_language === source && job.target_language === target && ['waiting', 'processing'].includes(job.status))) return;
     const result = await window.pywebview?.api?.create_subtitle_job(video.path, source, target, force);
     if (result?.job) updateSubtitleJob(result.job);
     if (!result?.ok) alert(result?.error || 'Không thể tạo Subtitle Job.');
@@ -48,8 +49,8 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
 
   async function generateAllQueuedVideos(requests: QueueGenerationRequest[]): Promise<void> {
     for (const { video, source, target, force } of requests) {
-      const active = subtitleJobs.value.some((job) => job.video_path === video.path && ['waiting', 'processing'].includes(job.status));
-      if (!active) await createSubtitleJob(video, source, target, force);
+      const cached = video.cachedPairs?.some(([cachedSource, cachedTarget]) => cachedSource === source && cachedTarget === target);
+      if (!cached) await createSubtitleJob(video, source, target, force);
     }
   }
 
@@ -63,9 +64,9 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
     if (result?.job) updateSubtitleJob(result.job);
   }
 
-  function removeQueuedVideo(video: QueuedVideo): void {
+  function removeQueuedVideo(video: PlaybackVideo): void {
     queuedVideos.value = queuedVideos.value.filter((item) => item.path !== video.path);
   }
 
-  return { activeScreen, queuedVideos, subtitleJobs, activeMainJob, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo };
+  return { queuedVideos, subtitleJobs, activeMainJob, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo };
 }

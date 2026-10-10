@@ -44,6 +44,30 @@ def test_bridge_creates_identified_waiting_job(tmp_path: Path) -> None:
     assert response["job"]["status"] == "completed"
 
 
+def test_cached_pair_cannot_complete_duplicate_while_matching_job_is_active(tmp_path: Path) -> None:
+    started = Event()
+    release = Event()
+
+    def runner(job: object, report: object) -> list[dict]:
+        started.set()
+        release.wait(timeout=2)
+        return []
+
+    video = _video(tmp_path, "active.mp4")
+    bridge = BridgeApi(port=8080, cache=SubtitleCache(tmp_path / "cache.db"), job_runner=runner)
+    first = bridge.create_subtitle_job(video, "en", "vi")
+    assert first["ok"] is True
+    assert started.wait(timeout=1)
+    bridge.save_cached_subtitles(video, "en", "vi", [{"id": "cached"}])
+
+    try:
+        duplicate = bridge.create_subtitle_job(video, "en", "vi")
+        assert duplicate["ok"] is False
+        assert duplicate["duplicate"] is True
+    finally:
+        release.set()
+
+
 def test_bridge_force_regeneration_discards_only_the_selected_cached_language_pair(tmp_path: Path) -> None:
     started = Event()
     release = Event()

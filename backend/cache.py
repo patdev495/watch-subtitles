@@ -64,11 +64,13 @@ class SubtitleCache:
         ], ensure_ascii=False)
         with self._connection() as conn:
             conn.execute(
+                "DELETE FROM subtitle_cache WHERE video_fingerprint = ? AND source_language = ? AND target_language = ?",
+                (video_fingerprint, source_language, target_language),
+            )
+            conn.execute(
                 """
                 INSERT INTO subtitle_cache (video_fingerprint, source_language, target_language, source_filename, cues_json)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(video_fingerprint, source_language, target_language) DO UPDATE SET
-                    cues_json = excluded.cues_json, source_filename = excluded.source_filename, created_at = CURRENT_TIMESTAMP
                 """,
                 (video_fingerprint, source_language, target_language, source_filename, cues_json),
             )
@@ -104,3 +106,18 @@ class SubtitleCache:
                 (video_fingerprint,),
             ).fetchall()
             return [(row["source_language"], row["target_language"]) for row in rows]
+
+    def latest_cached_pair(self, video_fingerprint: str) -> Optional[dict[str, Any]]:
+        with self._connection() as conn:
+            row = conn.execute(
+                "SELECT source_language, target_language, cues_json FROM subtitle_cache "
+                "WHERE video_fingerprint = ? ORDER BY rowid DESC LIMIT 1",
+                (video_fingerprint,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "source_language": row["source_language"],
+                "target_language": row["target_language"],
+                "cues": json.loads(row["cues_json"]),
+            }

@@ -87,6 +87,14 @@ class SubtitleJobScheduler:
         with self._lock:
             return [job.model_copy(deep=True) for job in self._jobs.values()]
 
+    def has_active_pair(self, video_path: str, source_language: str, target_language: str) -> bool:
+        with self._lock:
+            return any(
+                job.key == (video_path, source_language, target_language)
+                and job.status in {"waiting", "processing"}
+                for job in self._jobs.values()
+            )
+
     def cancel_waiting(self, job_id: str) -> SubtitleJob | None:
         """Cancel only waiting work; a running Job is intentionally immutable."""
         with self._lock:

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { UploadCloud, FileVideo } from 'lucide-vue-next';
 import PlayerControls from './PlayerControls.vue';
 
 const props = defineProps<{
   src?: string;
   filename?: string;
+  initialTime?: number;
 }>();
 
 const emit = defineEmits<{
@@ -14,6 +15,8 @@ const emit = defineEmits<{
   (e: 'play'): void;
   (e: 'pause'): void;
   (e: 'open-file'): void;
+  (e: 'ended'): void;
+  (e: 'error'): void;
 }>();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
@@ -59,9 +62,16 @@ function handleTimeUpdate() {
 
 function handleLoadedMetadata() {
   if (!videoRef.value) return;
+  if (props.initialTime) videoRef.value.currentTime = props.initialTime;
   duration.value = videoRef.value.duration;
   emit('durationchange', duration.value);
 }
+
+watch(() => props.src, async (src) => {
+  if (!src) return;
+  await nextTick();
+  if (videoRef.value) void videoRef.value.play().catch(() => { /* browser may block automatic playback */ });
+});
 
 function onSeek(time: number) {
   if (videoRef.value) {
@@ -161,11 +171,14 @@ defineExpose({ seekTo });
         v-if="src"
         ref="videoRef"
         :src="src"
+        autoplay
         class="video-core"
         @timeupdate="handleTimeUpdate"
         @loadedmetadata="handleLoadedMetadata"
         @play="isPlaying = true; emit('play')"
         @pause="isPlaying = false; emit('pause')"
+        @ended="emit('ended')"
+        @error="emit('error')"
       />
 
       <!-- Empty State -->

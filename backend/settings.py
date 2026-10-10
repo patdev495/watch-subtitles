@@ -1,10 +1,44 @@
 import json
 import os
 from pathlib import Path
-from pydantic import BaseModel, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class PlaybackQueueVideo(BaseModel):
+    path: str
+    source_language: str = "en"
+
+
+class PlaybackQueueState(BaseModel):
+    videos: list[PlaybackQueueVideo] = Field(default_factory=list)
+    selected_path: str = ""
+    playback_time: float = 0
+    auto_advance: bool = True
+
+
+class SubtitleLinePreference(BaseModel):
+    visible: bool = True
+    font_size: int = Field(default=18, ge=10, le=36)
+
+
+class SubtitleDisplayLines(BaseModel):
+    original: SubtitleLinePreference = Field(default_factory=lambda: SubtitleLinePreference(font_size=20))
+    translated: SubtitleLinePreference = Field(default_factory=lambda: SubtitleLinePreference(font_size=18))
+    originalPinyin: SubtitleLinePreference = Field(default_factory=lambda: SubtitleLinePreference(font_size=15))
+    translatedPinyin: SubtitleLinePreference = Field(default_factory=lambda: SubtitleLinePreference(font_size=15))
+
+
+class SubtitleDisplayPreferences(BaseModel):
+    primary_line: Literal["original", "translated"] = "translated"
+    overlay_visible: bool = True
+    lines: SubtitleDisplayLines = Field(default_factory=SubtitleDisplayLines)
 
 
 class AppSettings(BaseModel):
+    playback_queue: PlaybackQueueState = Field(default_factory=PlaybackQueueState)
+    subtitle_display_preferences: SubtitleDisplayPreferences = Field(default_factory=SubtitleDisplayPreferences)
     deepgram_api_key: str = ""
     assemblyai_api_key: str = ""
     deepl_api_key: str = ""

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Download, Eye, EyeOff, Info, SlidersHorizontal, X } from 'lucide-vue-next';
 import { pinyin } from 'pinyin-pro';
-import type { Cue } from '../types';
+import type { Cue, SubtitleDisplayPreferences, SubtitleLine } from '../types';
 import { useTranscript } from '../composables/useTranscript';
 
 const props = defineProps<{
@@ -12,17 +12,18 @@ const props = defineProps<{
   targetLanguage: string;
   isFullscreen?: boolean;
   controlsVisible?: boolean;
+  preferences?: SubtitleDisplayPreferences;
 }>();
 
-type SubtitleLine = 'original' | 'originalPinyin' | 'translated' | 'translatedPinyin';
+const emit = defineEmits<{ (event: 'update:preferences', value: SubtitleDisplayPreferences): void }>();
 
 const cuesRef = computed(() => props.cues);
 const currentTimeRef = computed(() => props.currentTime);
 const { activeCue } = useTranscript(cuesRef, currentTimeRef);
-const primaryLine = ref<'original' | 'translated'>('translated');
+const primaryLine = ref<'original' | 'translated'>(props.preferences?.primary_line ?? 'translated');
 const detailOpen = ref(false);
 const settingsOpen = ref(false);
-const subtitlesVisible = ref(true);
+const subtitlesVisible = ref(props.preferences?.overlay_visible ?? true);
 const chineseLanguage = (language: string): boolean => language.toLowerCase().startsWith('zh');
 const originalPinyin = computed(() => activeCue.value && chineseLanguage(props.sourceLanguage)
   ? pinyin(activeCue.value.originalText, { toneType: 'symbol' }) : '');
@@ -33,8 +34,31 @@ const primaryText = computed(() => activeCue.value
   : '');
 
 const lineSettings = reactive<Record<SubtitleLine, { visible: boolean; fontSize: number }>>({
-  original: { visible: true, fontSize: 20 }, originalPinyin: { visible: true, fontSize: 15 },
-  translated: { visible: true, fontSize: 18 }, translatedPinyin: { visible: true, fontSize: 15 },
+  original: { visible: props.preferences?.lines.original.visible ?? true, fontSize: props.preferences?.lines.original.font_size ?? 20 },
+  originalPinyin: { visible: props.preferences?.lines.originalPinyin.visible ?? true, fontSize: props.preferences?.lines.originalPinyin.font_size ?? 15 },
+  translated: { visible: props.preferences?.lines.translated.visible ?? true, fontSize: props.preferences?.lines.translated.font_size ?? 18 },
+  translatedPinyin: { visible: props.preferences?.lines.translatedPinyin.visible ?? true, fontSize: props.preferences?.lines.translatedPinyin.font_size ?? 15 },
+});
+function snapshotPreferences(): SubtitleDisplayPreferences {
+  return {
+    primary_line: primaryLine.value, overlay_visible: subtitlesVisible.value,
+    lines: {
+      original: { visible: lineSettings.original.visible, font_size: lineSettings.original.fontSize },
+      originalPinyin: { visible: lineSettings.originalPinyin.visible, font_size: lineSettings.originalPinyin.fontSize },
+      translated: { visible: lineSettings.translated.visible, font_size: lineSettings.translated.fontSize },
+      translatedPinyin: { visible: lineSettings.translatedPinyin.visible, font_size: lineSettings.translatedPinyin.fontSize },
+    },
+  };
+}
+function notifyPreferences(): void { emit('update:preferences', snapshotPreferences()); }
+watch(() => props.preferences, (preferences) => {
+  if (!preferences) return;
+  primaryLine.value = preferences.primary_line;
+  subtitlesVisible.value = preferences.overlay_visible;
+  for (const key of ['original', 'originalPinyin', 'translated', 'translatedPinyin'] as const) {
+    lineSettings[key].visible = preferences.lines[key].visible;
+    lineSettings[key].fontSize = preferences.lines[key].font_size;
+  }
 });
 const detailLines = computed(() => [
   { key: 'original' as const, label: 'Gốc', text: activeCue.value?.originalText ?? '', minimum: 12 },
@@ -44,10 +68,19 @@ const detailLines = computed(() => [
 ]);
 
 function lineStyle(line: SubtitleLine): { fontSize: string } { return { fontSize: `${lineSettings[line].fontSize}px` }; }
-function updateFontSize(line: SubtitleLine, event: Event): void { lineSettings[line].fontSize = Number((event.target as HTMLInputElement).value); }
-function choosePrimary(line: 'original' | 'translated'): void { primaryLine.value = line; }
-function toggleSubtitles(): void { subtitlesVisible.value = !subtitlesVisible.value; }
+function updateFontSize(line: SubtitleLine, event: Event): void { lineSettings[line].fontSize = Number((event.target as HTMLInputElement).value); notifyPreferences(); }
+function choosePrimary(line: 'original' | 'translated'): void { primaryLine.value = line; notifyPreferences(); }
+function toggleSubtitles(): void { subtitlesVisible.value = !subtitlesVisible.value; notifyPreferences(); }
+function toggleLine(line: SubtitleLine): void { lineSettings[line].visible = !lineSettings[line].visible; notifyPreferences(); }
 function closePanel(): void { detailOpen.value = false; settingsOpen.value = false; }
+function toggleSettingsPanel(): void {
+  if (settingsOpen.value) {
+    closePanel();
+    return;
+  }
+  detailOpen.value = true;
+  settingsOpen.value = true;
+}
 
 const exportFormats = ['srt', 'vtt'] as const;
 const exportLayouts = [{ value: 'bilingual', label: 'Song ngữ' }, { value: 'original', label: 'Chỉ gốc' }, { value: 'translated', label: 'Chỉ dịch' }] as const;
@@ -106,17 +139,17 @@ async function exportSubtitles(): Promise<void> {
         class="toolbar-button"
         aria-label="Mở chỉnh phụ đề"
         :aria-expanded="settingsOpen"
-        @click="settingsOpen = !settingsOpen"
+        @click="toggleSettingsPanel"
       >
         <SlidersHorizontal :size="18" aria-hidden="true" />
         <span>Aa</span>
       </button>
     </div>
 
-    <button v-if="subtitlesVisible && lineSettings[primaryLine].visible" class="caption-card" :style="lineStyle(primaryLine)" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true">
-      <span>{{ primaryText }}</span>
-      <Info :size="15" aria-hidden="true" />
-    </button>
+    <div v-if="subtitlesVisible && lineSettings[primaryLine].visible" class="caption-card" :style="lineStyle(primaryLine)">
+      <span class="caption-text">{{ primaryText }}</span>
+      <button class="caption-detail-button" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true"><Info :size="15" aria-hidden="true" /></button>
+    </div>
 
     <aside v-if="detailOpen || settingsOpen" class="cue-drawer" :aria-label="detailOpen ? 'Chi tiết phụ đề hiện tại' : 'Chỉnh hiển thị phụ đề'">
       <div class="drawer-header">
@@ -129,12 +162,12 @@ async function exportSubtitles(): Promise<void> {
       </div>
       <div v-for="line in detailOpen ? detailLines : []" :key="line.key" v-show="lineSettings[line.key].visible" class="detail-line" :class="`detail-line--${line.key}`">
         <span>{{ line.label }}</span>
-        <p :style="lineStyle(line.key)">{{ line.text }}</p>
+        <p class="selectable-detail-text" :style="lineStyle(line.key)" @pointerdown.stop @mousedown.stop>{{ line.text }}</p>
       </div>
       <div v-if="settingsOpen" class="display-settings">
         <strong>Hiển thị &amp; cỡ chữ</strong>
         <div v-for="line in detailLines" :key="line.key" class="setting-row">
-          <button class="icon-button" :aria-label="`${lineSettings[line.key].visible ? 'Ẩn' : 'Hiện'} dòng ${line.label}`" @click="lineSettings[line.key].visible = !lineSettings[line.key].visible">
+          <button class="icon-button" :aria-label="`${lineSettings[line.key].visible ? 'Ẩn' : 'Hiện'} dòng ${line.label}`" @click="toggleLine(line.key)">
             <Eye v-if="lineSettings[line.key].visible" :size="15" aria-hidden="true" /><EyeOff v-else :size="15" aria-hidden="true" />
           </button>
           <label :for="`font-${line.key}`">{{ line.label }}</label>
@@ -159,12 +192,12 @@ async function exportSubtitles(): Promise<void> {
 .subtitle-overlay.fullscreen.controls-visible .subtitle-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
 .toolbar-button { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 10px; border: 1px solid rgba(148, 163, 184, .42); border-radius: 8px; color: #f8fafc; background: rgba(2, 6, 23, .82); box-shadow: 0 4px 18px rgba(0, 0, 0, .35); cursor: pointer; font-size: 12px; font-weight: 700; }
 .toolbar-button:hover, .toolbar-button:focus-visible, .icon-button:focus-visible { border-color: #93c5fd; background: #172033; outline: 2px solid transparent; }
-.caption-card { position: absolute; left: 50%; bottom: 18px; display: inline-flex; align-items: center; gap: 8px; max-width: min(78%, 760px); padding: 8px 14px; transform: translateX(-50%); border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px; color: #f8fafc; background: rgba(2, 6, 23, .82); box-shadow: 0 4px 18px rgba(0, 0, 0, .42); line-height: 1.45; text-align: center; cursor: pointer; pointer-events: auto; }
-.caption-card:hover { background: rgba(15, 23, 42, .94); }.caption-card span { overflow-wrap: anywhere; }.caption-card svg { flex: 0 0 auto; color: #93c5fd; }
+.caption-card { position: absolute; left: 50%; bottom: 18px; display: inline-flex; align-items: center; gap: 8px; max-width: min(78%, 760px); padding: 8px 14px; transform: translateX(-50%); border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px; color: #f8fafc; background: rgba(2, 6, 23, .82); box-shadow: 0 4px 18px rgba(0, 0, 0, .42); line-height: 1.45; text-align: center; pointer-events: auto; }
+.caption-text { overflow-wrap: anywhere; cursor: text; user-select: text; -webkit-user-select: text; }.caption-detail-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; color: #93c5fd; background: transparent; cursor: pointer; }.caption-detail-button:hover, .caption-detail-button:focus-visible { background: rgba(148, 163, 184, .2); outline: 2px solid #93c5fd; outline-offset: 2px; }.caption-detail-button svg { display: block; }
 .cue-drawer { position: absolute; top: 58px; right: 14px; width: min(360px, calc(100% - 28px)); max-height: calc(100% - 72px); overflow: auto; padding: 14px; border: 1px solid rgba(148, 163, 184, .4); border-radius: 12px; color: #e2e8f0; background: rgba(2, 6, 23, .96); box-shadow: 0 16px 42px rgba(0, 0, 0, .55); pointer-events: auto; }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }.drawer-header strong { font-size: 14px; }.icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; padding: 0; border: 1px solid rgba(148, 163, 184, .42); border-radius: 6px; color: #e2e8f0; background: #172033; cursor: pointer; }
 .primary-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }.primary-switch button, .export-row button { min-height: 30px; border: 1px solid rgba(148, 163, 184, .42); border-radius: 6px; color: #e2e8f0; background: #172033; cursor: pointer; }.primary-switch button.selected { color: #fff; background: #2563eb; border-color: #60a5fa; }
-.detail-line { padding: 9px 0; border-top: 1px solid rgba(148, 163, 184, .2); }.detail-line > span { display: block; margin-bottom: 4px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }.detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }.detail-line--original p { color: #f8fafc; }.detail-line--translated p { color: #fde68a; }.detail-line--originalPinyin p, .detail-line--translatedPinyin p { color: #67e8f9; font-style: italic; }
+.detail-line { padding: 9px 0; border-top: 1px solid rgba(148, 163, 184, .2); }.detail-line > span { display: block; margin-bottom: 4px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }.detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }.selectable-detail-text { cursor: text; user-select: text !important; -webkit-user-select: text !important; pointer-events: auto; }.detail-line--original p { color: #f8fafc; }.detail-line--translated p { color: #fde68a; }.detail-line--originalPinyin p, .detail-line--translatedPinyin p { color: #67e8f9; font-style: italic; }
 .display-settings { margin-top: 10px; border-top: 1px solid rgba(148, 163, 184, .2); padding-top: 10px; }.display-settings > strong { color: #93c5fd; font-size: 12px; font-weight: 700; }.setting-row { display: grid; grid-template-columns: 30px 76px 1fr 36px; align-items: center; gap: 6px; margin-top: 8px; color: #cbd5e1; font-size: 12px; }.setting-row input { width: 100%; accent-color: #60a5fa; }.setting-row output { font-variant-numeric: tabular-nums; }
 .export-row { display: grid; grid-template-columns: 68px 1fr 64px; gap: 6px; margin-top: 14px; }.export-row select { min-width: 0; border: 1px solid rgba(148, 163, 184, .42); border-radius: 6px; color: #e2e8f0; background: #172033; font-size: 12px; }.export-row button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #2563eb; }.export-message { margin: 8px 0 0; color: #86efac; font-size: 12px; }
 @media (max-width: 720px) { .subtitle-toolbar { top: 8px; right: 8px; }.toolbar-button { min-height: 34px; padding: 0 8px; }.caption-card { bottom: 14px; max-width: calc(100% - 24px); }.cue-drawer { top: 50px; right: 8px; width: min(340px, calc(100% - 16px)); max-height: calc(100% - 58px); } }

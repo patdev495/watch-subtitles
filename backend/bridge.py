@@ -5,7 +5,8 @@ from typing import Optional, Dict, Any
 from urllib.parse import quote
 import webview
 from pydantic import BaseModel
-from backend.settings import AppSettings, load_settings, save_settings as persist_settings
+from backend.settings import AppSettings, SubtitleDisplayPreferences, load_settings, save_settings as persist_settings
+from backend.playback_queue import import_video_files, import_video_folder, get_playback_queue as read_playback_queue, save_playback_queue as persist_playback_queue
 from backend.providers import STT_PROVIDERS, TRANSLATION_PROVIDERS, TTS_PROVIDERS
 from backend.fingerprint import compute_video_fingerprint
 from backend.cache import SubtitleCache
@@ -13,14 +14,10 @@ from backend.audio import extract_audio
 from backend.pipeline import run_subtitling_pipeline
 from backend.export import format_srt, format_vtt
 from backend.jobs import DuplicateActiveJobError, JobRunner, SubtitleJob, SubtitleJobScheduler
-
-
 STT_API_KEY_FIELDS: dict[str, str] = {
     "deepgram": "deepgram_api_key",
     "assemblyai": "assemblyai_api_key",
 }
-
-
 def _stt_api_key(settings: AppSettings, provider_name: str) -> str:
     """Return the credential assigned to a configured transcription provider."""
     field_name = STT_API_KEY_FIELDS.get(provider_name)
@@ -114,6 +111,18 @@ class BridgeApi:
             stream_url=stream_url
         ).model_dump()
 
+    def open_video_files_dialog(self) -> Dict[str, Any]:
+        return import_video_files(self._window, self.load_video_path)
+
+    def open_video_folder_dialog(self) -> Dict[str, Any]:
+        return import_video_folder(self._window, self.load_video_path)
+
+    def get_playback_queue(self) -> Dict[str, Any]:
+        return read_playback_queue()
+
+    def save_playback_queue(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return persist_playback_queue(data)
+
     # ── Settings ────────────────────────────────────────────────────────────────
 
     def get_settings(self) -> Dict[str, Any]:
@@ -123,8 +132,20 @@ class BridgeApi:
     def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Persist settings from frontend. Returns saved settings for confirmation."""
         settings = AppSettings(**data)
+        settings.playback_queue = load_settings().playback_queue
+        settings.subtitle_display_preferences = load_settings().subtitle_display_preferences
         persist_settings(settings)
         return settings.model_dump()
+
+    def get_subtitle_display_preferences(self) -> Dict[str, Any]:
+        return load_settings().subtitle_display_preferences.model_dump()
+
+    def save_subtitle_display_preferences(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        preferences = SubtitleDisplayPreferences.model_validate(data)
+        settings = load_settings()
+        settings.subtitle_display_preferences = preferences
+        persist_settings(settings)
+        return preferences.model_dump()
 
     def test_connection(self, provider_type: str, provider_name: str, api_key: str) -> Dict[str, Any]:
         """Validate API key for a named provider. provider_type: 'stt' | 'translation'."""
@@ -179,6 +200,14 @@ class BridgeApi:
         except Exception as exc:
             return {"ok": False, "language_pairs": [], "error": str(exc)}
 
+    def get_latest_cached_subtitles(self, video_path: str) -> Dict[str, Any]:
+        try:
+            fingerprint = compute_video_fingerprint(video_path)
+            latest = self._cache.latest_cached_pair(fingerprint)
+            return {"ok": True, "cached": latest is not None, **(latest or {"cues": []})}
+        except Exception as exc:
+            return {"ok": False, "cached": False, "cues": [], "error": str(exc)}
+
     def save_cached_subtitles(
         self, video_path: str, source_language: str, target_language: str, cues: list
     ) -> Dict[str, Any]:
@@ -207,6 +236,8 @@ class BridgeApi:
         """Queue one Subtitle Job, optionally discarding its cached language pair first."""
         if not os.path.isfile(video_path):
             return {"ok": False, "error": f"Video file not found: {video_path}"}
+        if self._job_scheduler.has_active_pair(video_path, source_language, target_language):
+            return {"ok": False, "error": "Video này đã có Subtitle Job đang chờ hoặc đang xử lý cho cặp ngôn ngữ đã chọn.", "duplicate": True}
         job = SubtitleJob(
             video_path=video_path,
             source_language=source_language,
