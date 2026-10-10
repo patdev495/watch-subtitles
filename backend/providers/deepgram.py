@@ -1,22 +1,17 @@
-from io import BytesIO
 from pathlib import Path
 from typing import Any, Sequence
-import wave
 import httpx
 from .base import STTProvider, CueResult
 
 
 class DeepgramProvider(STTProvider):
-    """Deepgram speech-to-text provider with gap recovery."""
+    """Deepgram speech-to-text provider."""
 
     BASE_URL = "https://api.deepgram.com/v1"
     WORD_PAUSE_SECONDS = 0.5
     MAX_CUE_DURATION_SECONDS = 6.0
     MAX_CUE_TEXT_CHARS = 60
     MAX_CJK_CUE_CHARS = 14
-    GAP_RECOVERY_SECONDS = 12.0
-    GAP_PADDING_SECONDS = 1.0
-    MAX_GAP_REQUESTS = 20
     DETECTED_LANGUAGE_ALIASES = {
         "zh": "zh-CN",
         "zh-hans": "zh-CN",
@@ -34,7 +29,7 @@ class DeepgramProvider(STTProvider):
 
         data = Path(audio_path).read_bytes()
         base_params = {
-            "model": "nova-2",
+            "model": "nova-3",
             "smart_format": "true",
             "utterances": "true",
             "punctuate": "true",
@@ -54,14 +49,9 @@ class DeepgramProvider(STTProvider):
         else:
             res_json = self._request(data, base_params)
 
-        results = res_json.get("results", {})
         if self._detected_language is None:
             self._detected_language = self._language_from_response(res_json)
-        cues = self._parse_cues(res_json)
-        resolved_language = self._detected_language if language == "auto" else language or "en"
-        if not resolved_language:
-            return cues
-        return self._recover_gaps(data, resolved_language, cues)
+        return self._parse_cues(res_json)
 
     def _parse_cues(self, res_json: dict[str, Any]) -> list[CueResult]:
         results = res_json.get("results", {})
@@ -122,62 +112,6 @@ class DeepgramProvider(STTProvider):
                     return [CueResult(id="1", start=start, end=end, original_text=transcript)]
 
         return cues
-
-    def _recover_gaps(
-        self, data: bytes, language: str, cues: list[CueResult]
-    ) -> list[CueResult]:
-        """Use Nova-3 only where Nova-2 left a substantial gap in a PCM WAV."""
-        try:
-            audio = wave.open(BytesIO(data), "rb")
-        except (wave.Error, EOFError):
-            return cues
-
-        with audio:
-            if audio.getcomptype() != "NONE" or audio.getframerate() <= 0:
-                return cues
-            rate = audio.getframerate()
-            duration = audio.getnframes() / rate
-            ordered = sorted(cues, key=lambda cue: cue.start)
-            boundaries = [(0.0, ordered[0].start)] if ordered else []
-            boundaries.extend(
-                (left.end, right.start) for left, right in zip(ordered, ordered[1:])
-            )
-            boundaries.append((ordered[-1].end if ordered else 0.0, duration))
-            gaps = sorted(
-                ((start, end) for start, end in boundaries if end - start >= self.GAP_RECOVERY_SECONDS),
-                key=lambda gap: gap[1] - gap[0],
-                reverse=True,
-            )[:self.MAX_GAP_REQUESTS]
-            recovered: list[CueResult] = []
-            for gap_start, gap_end in gaps:
-                clip_start = max(0.0, gap_start - self.GAP_PADDING_SECONDS)
-                clip_end = min(duration, gap_end + self.GAP_PADDING_SECONDS)
-                audio.setpos(int(clip_start * rate))
-                frames = audio.readframes(int((clip_end - clip_start) * rate))
-                clip = BytesIO()
-                with wave.open(clip, "wb") as writer:
-                    writer.setparams(audio.getparams())
-                    writer.writeframes(frames)
-                try:
-                    response = self._request(clip.getvalue(), {
-                        "model": "nova-3", "language": language,
-                        "smart_format": "true", "utterances": "true", "punctuate": "true",
-                    })
-                except (RuntimeError, httpx.HTTPError):
-                    continue
-                for cue in self._parse_cues(response):
-                    start = round(cue.start + clip_start, 2)
-                    end = round(cue.end + clip_start, 2)
-                    if end <= start or end <= gap_start or start >= gap_end:
-                        continue
-                    if any(min(end, item.end) - max(start, item.start) > 0.3 for item in ordered):
-                        continue
-                    recovered.append(CueResult(
-                        id=f"nova3-{int(gap_start * 100)}-{cue.id}",
-                        start=start, end=end, original_text=cue.original_text,
-                    ))
-
-        return sorted([*cues, *recovered], key=lambda cue: cue.start)
 
     def _request(self, data: bytes, params: dict[str, str]) -> dict[str, Any]:
         headers = {

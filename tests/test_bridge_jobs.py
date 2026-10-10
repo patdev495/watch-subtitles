@@ -1,11 +1,13 @@
 from pathlib import Path
 from threading import Event
 from time import sleep
+from unittest.mock import patch
 
 import pytest
 
 from backend.bridge import BridgeApi
 from backend.cache import SubtitleCache
+from backend.settings import AppSettings
 
 
 def _video(tmp_path: Path, name: str) -> str:
@@ -67,6 +69,25 @@ def test_bridge_force_regeneration_discards_only_the_selected_cached_language_pa
 
     release.set()
     assert _wait_for(bridge, response["job"]["id"], {"completed"})["cues"][0]["id"] == "fresh"
+
+
+def test_bridge_passes_force_regeneration_to_the_queued_pipeline(tmp_path: Path) -> None:
+    video = _video(tmp_path, "video.mp4")
+    cache = SubtitleCache(db_path=tmp_path / "cache.db")
+    bridge = BridgeApi(port=8080, cache=cache)
+    received_force: list[bool] = []
+
+    def fake_pipeline(**kwargs: object) -> list[dict]:
+        received_force.append(kwargs["force"])
+        return []
+
+    with patch("backend.bridge.load_settings", return_value=AppSettings(deepgram_api_key="dg", deepl_api_key="dl")), patch(
+        "backend.bridge.run_subtitling_pipeline", side_effect=fake_pipeline
+    ):
+        response = bridge.create_subtitle_job(video, "en", "vi", force=True)
+        _wait_for(bridge, response["job"]["id"], {"completed"})
+
+    assert received_force == [True]
 
 
 def test_bridge_runs_jobs_fifo_and_keeps_results_isolated(tmp_path: Path) -> None:

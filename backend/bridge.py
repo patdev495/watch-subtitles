@@ -199,6 +199,7 @@ class BridgeApi:
             video_path=video_path,
             source_language=source_language,
             target_language=target_language,
+            force=force,
         )
         try:
             fingerprint = compute_video_fingerprint(video_path)
@@ -262,6 +263,7 @@ class BridgeApi:
             translation_provider=trans_cls(trans_key),
             cache=self._cache,
             on_progress=on_progress,
+            force=job.force,
         )
 
     def _emit_job_progress(self, job: Dict[str, Any]) -> None:

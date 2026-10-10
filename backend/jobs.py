@@ -30,6 +30,7 @@ class SubtitleJob(BaseModel):
     cues: list[dict[str, Any]] = Field(default_factory=list)
     error: str | None = None
     cached: bool = False
+    force: bool = False
 
     @property
     def key(self) -> tuple[str, str, str]:
