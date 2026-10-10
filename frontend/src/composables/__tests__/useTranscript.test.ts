@@ -49,6 +49,11 @@ describe('useTranscript', () => {
     expect(activeCue.value?.id).toBe('2');
   });
 
+  it('shows an upcoming cue shortly before its first timed word', () => {
+    const { activeCue } = useTranscript(ref([makeCue('spoken', 10, 12)]), ref(9.75));
+    expect(activeCue.value?.id).toBe('spoken');
+  });
+
   // ── Slice 6: time past all cues ──────────────────────────────────────────────
   it('returns null when currentTime is after all cues', () => {
     const { activeCue } = useTranscript(ref(SAMPLE_CUES), ref(999));

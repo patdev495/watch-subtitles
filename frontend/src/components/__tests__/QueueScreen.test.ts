@@ -17,10 +17,10 @@ describe('QueueScreen', () => {
     expect((wrapper.get('[data-test="source-language"]').element as HTMLSelectElement).value).toBe('en');
     expect((wrapper.get('[data-test="target-language"]').element as HTMLSelectElement).value).toBe('vi');
     await wrapper.get('[data-test="play-video"]').trigger('click');
-    expect(wrapper.emitted('play')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4' }]]);
+    expect(wrapper.emitted('play')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4' }, 'en', 'vi']]);
     await wrapper.get('[data-test="generate-video"]').trigger('click');
 
-    expect(wrapper.emitted('generate')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4' }, 'en', 'vi']]);
+    expect(wrapper.emitted('generate')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4' }, 'en', 'vi', false]]);
   });
 
   it('keeps a failed video visible and exposes retry with original language pair', async () => {
@@ -64,8 +64,8 @@ describe('QueueScreen', () => {
     await wrapper.get('[data-test="source-language"]').setValue('zh-CN');
     expect(wrapper.get('[data-test="generate-video"]').text()).toContain('Tạo lại phụ đề');
     await wrapper.get('[data-test="generate-video"]').trigger('click');
-    expect(wrapper.emitted('generate')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4', cachedPairs: [['zh-CN', 'vi']] }, 'zh-CN', 'vi']]);
+    expect(wrapper.emitted('generate')).toEqual([[{ path: '/videos/lesson.mp4', filename: 'lesson.mp4', cachedPairs: [['zh-CN', 'vi']] }, 'zh-CN', 'vi', true]]);
     await wrapper.get('.queue-actions .primary-button').trigger('click');
-    expect(wrapper.emitted('generate-all')).toEqual([[[{ video: { path: '/videos/lesson.mp4', filename: 'lesson.mp4', cachedPairs: [['zh-CN', 'vi']] }, source: 'zh-CN', target: 'vi' }]]]);
+    expect(wrapper.emitted('generate-all')).toEqual([[[{ video: { path: '/videos/lesson.mp4', filename: 'lesson.mp4', cachedPairs: [['zh-CN', 'vi']] }, source: 'zh-CN', target: 'vi', force: true }]]]);
   });
 });

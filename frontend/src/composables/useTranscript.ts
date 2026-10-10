@@ -16,9 +16,10 @@ export function useTranscript(
   cues: Ref<Cue[]>,
   currentTime: Ref<number>,
 ): UseTranscriptReturn {
+  const cueLeadSeconds = 0.3;
   const activeCueIndex = computed<number>(() => {
     const t = currentTime.value;
-    return cues.value.findIndex((c) => t >= c.start && t < c.end);
+    return cues.value.findIndex((c) => t >= Math.max(0, c.start - cueLeadSeconds) && t < c.end);
   });
 
   const activeCue = computed<Cue | null>(() => {

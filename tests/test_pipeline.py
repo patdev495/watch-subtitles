@@ -85,6 +85,79 @@ def test_pipeline_force_regenerates_cached_subtitles():
         assert result[0]["originalText"] == "Hello world"
 
 
+def test_pipeline_translates_auto_detected_audio_using_the_detected_language():
+    class AutoDetectingSTT(DummySTT):
+        def detected_language(self) -> str | None:
+            return "vi"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        video_path = Path(tmp) / "video.mp4"
+        video_path.write_bytes(b"dummy video content" * 100)
+        audio_path = Path(tmp) / "extracted.wav"
+        audio_path.write_bytes(b"fake wav")
+        translation = DummyTranslation()
+
+        with patch("backend.pipeline.extract_audio", return_value=audio_path):
+            result = run_subtitling_pipeline(
+                video_path=str(video_path),
+                source_language="auto",
+                target_language="en",
+                stt_provider=AutoDetectingSTT(),
+                translation_provider=translation,
+                cache=SubtitleCache(db_path=Path(tmp) / "cache.db"),
+            )
+
+        assert result[0]["translatedText"] == "[en] Hello world"
+        assert translation.last_source_language == "vi"
+
+
+def test_pipeline_auto_uses_better_cached_subtitles_for_the_same_video_and_target():
+    class RetryingSTT(DummySTT):
+        def __init__(self) -> None:
+            super().__init__(cues=[])
+            self.languages: list[str] = []
+
+        def transcribe(self, audio_path: str, language: str = "") -> list[CueResult]:
+            self.languages.append(language)
+            if language == "auto":
+                return [CueResult(id="wrong", start=0.0, end=1.0, original_text="Hello")]
+            return [CueResult(id="fresh", start=2.0, end=5.0, original_text="你好")]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        video_path = Path(tmp) / "video.mp4"
+        video_path.write_bytes(b"dummy video content" * 100)
+        audio_path = Path(tmp) / "extracted.wav"
+        audio_path.write_bytes(b"fake wav")
+        cache = SubtitleCache(db_path=Path(tmp) / "cache.db")
+        from backend.fingerprint import compute_video_fingerprint
+        fingerprint = compute_video_fingerprint(str(video_path))
+        chinese_cues = [
+            {
+                "id": str(index), "start": float(index * 2), "end": float(index * 2 + 1),
+                "originalText": "你好", "translatedText": "Xin chào",
+            }
+            for index in range(10)
+        ]
+        cache.save_cues(fingerprint, "zh-CN", "vi", chinese_cues)
+        auto_stt = RetryingSTT()
+        translation = DummyTranslation()
+
+        with patch("backend.pipeline.extract_audio", return_value=audio_path):
+            result = run_subtitling_pipeline(
+                video_path=str(video_path), source_language="auto", target_language="vi",
+                stt_provider=auto_stt, translation_provider=translation, cache=cache,
+                force=True,
+            )
+
+        assert auto_stt.languages == ["zh-CN"]
+        assert result == [{
+            "id": "fresh", "start": 2.0, "end": 5.0,
+            "originalText": "你好", "translatedText": "[vi] 你好",
+        }]
+        assert translation.last_source_language == "zh-CN"
+        assert cache.get_cues(fingerprint, "auto", "vi") == result
+
+
 def test_pipeline_cache_miss_full_run():
     with tempfile.TemporaryDirectory() as tmp:
         video_path = Path(tmp) / "video.mp4"
@@ -153,6 +226,33 @@ def test_pipeline_empty_transcription():
             )
 
         assert result == []
+
+
+def test_pipeline_rejects_translation_count_that_does_not_match_cues():
+    class IncompleteTranslation(TranslationProvider):
+        def translate(self, texts, source_language: str, target_language: str):
+            return ["[vi] Only the first cue"]
+
+        def validate_key(self, api_key: str) -> bool:
+            return True
+
+    with tempfile.TemporaryDirectory() as tmp:
+        video_path = Path(tmp) / "video.mp4"
+        video_path.write_bytes(b"dummy video content" * 100)
+        audio_path = Path(tmp) / "extracted.wav"
+        audio_path.write_bytes(b"fake wav")
+
+        with patch("backend.pipeline.extract_audio", return_value=audio_path), pytest.raises(
+            ValueError, match="Translation provider returned 1 translations for 2 cues"
+        ):
+            run_subtitling_pipeline(
+                video_path=str(video_path),
+                source_language="en",
+                target_language="vi",
+                stt_provider=DummySTT(),
+                translation_provider=IncompleteTranslation(),
+                cache=SubtitleCache(db_path=Path(tmp) / "cache.db"),
+            )
 
 
 def test_pipeline_missing_file_raises():

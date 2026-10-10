@@ -30,8 +30,8 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
     if (result?.ok) subtitleJobs.value = result.jobs;
   }
 
-  async function createSubtitleJob(video: QueuedVideo, source: string, target: string): Promise<void> {
-    const result = await window.pywebview?.api?.create_subtitle_job(video.path, source, target);
+  async function createSubtitleJob(video: QueuedVideo, source: string, target: string, force = false): Promise<void> {
+    const result = await window.pywebview?.api?.create_subtitle_job(video.path, source, target, force);
     if (result?.job) updateSubtitleJob(result.job);
     if (!result?.ok) alert(result?.error || 'Không thể tạo Subtitle Job.');
   }
@@ -47,9 +47,9 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
   }
 
   async function generateAllQueuedVideos(requests: QueueGenerationRequest[]): Promise<void> {
-    for (const { video, source, target } of requests) {
+    for (const { video, source, target, force } of requests) {
       const active = subtitleJobs.value.some((job) => job.video_path === video.path && ['waiting', 'processing'].includes(job.status));
-      if (!active) await createSubtitleJob(video, source, target);
+      if (!active) await createSubtitleJob(video, source, target, force);
     }
   }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Activity, ArrowRight, FileVideo, FolderOpen, Languages, ListVideo, Loader2, Settings, Sparkles } from 'lucide-vue-next';
-import { SUPPORTED_LANGUAGES } from '../languages';
+import { SUPPORTED_LANGUAGES, SUPPORTED_SOURCE_LANGUAGES } from '../languages';
 
 const props = withDefaults(defineProps<{
   currentFilename?: string; backendConnected: boolean; isGenerating?: boolean; hasSubtitles?: boolean; sourceLanguage?: string; targetLanguage?: string;
@@ -8,9 +8,10 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'open-video'): void; (e: 'ping-backend'): void; (e: 'open-settings'): void;
   (e: 'update:sourceLanguage', lang: string): void; (e: 'update:targetLanguage', lang: string): void;
-  (e: 'generate-subtitles', sourceLanguage: string, targetLanguage: string): void; (e: 'open-queue'): void;
+  (e: 'generate-subtitles', sourceLanguage: string, targetLanguage: string, force: boolean): void; (e: 'open-queue'): void;
 }>();
-const languages = SUPPORTED_LANGUAGES;
+const sourceLanguages = SUPPORTED_SOURCE_LANGUAGES;
+const targetLanguages = SUPPORTED_LANGUAGES;
 function updateLanguage(event: Event, kind: 'source' | 'target'): void {
   const value = (event.target as HTMLSelectElement).value;
   if (kind === 'source') emit('update:sourceLanguage', value);
@@ -31,15 +32,15 @@ function updateLanguage(event: Event, kind: 'source' | 'target'): void {
     <div class="language-control" aria-label="Cặp ngôn ngữ">
       <Languages :size="15" aria-hidden="true" />
       <label class="sr-only" for="source-language">Ngôn ngữ nguồn</label>
-      <select id="source-language" :value="sourceLanguage" :disabled="isGenerating" @change="updateLanguage($event, 'source')"><option v-for="language in languages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
+      <select id="source-language" :value="sourceLanguage" :disabled="isGenerating" @change="updateLanguage($event, 'source')"><option v-for="language in sourceLanguages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
       <ArrowRight :size="14" aria-hidden="true" />
       <label class="sr-only" for="target-language">Ngôn ngữ đích</label>
-      <select id="target-language" :value="targetLanguage" :disabled="isGenerating" @change="updateLanguage($event, 'target')"><option v-for="language in languages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
+      <select id="target-language" :value="targetLanguage" :disabled="isGenerating" @change="updateLanguage($event, 'target')"><option v-for="language in targetLanguages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
     </div>
 
     <div class="main-actions">
       <button class="queue-button" title="Mở hàng đợi tạo phụ đề" @click="emit('open-queue')"><ListVideo :size="17" aria-hidden="true" /><span>Hàng đợi</span></button>
-      <button class="generate-button" :disabled="!currentFilename || isGenerating" @click="emit('generate-subtitles', sourceLanguage, targetLanguage)">
+      <button class="generate-button" :disabled="!currentFilename || isGenerating" @click="emit('generate-subtitles', sourceLanguage, targetLanguage, hasSubtitles)">
         <Loader2 v-if="isGenerating" :size="17" class="spin" aria-hidden="true" /><Sparkles v-else :size="17" aria-hidden="true" />
         <span>{{ isGenerating ? 'Đang tạo' : hasSubtitles ? 'Tạo lại' : 'Tạo phụ đề' }}</span>
       </button>

@@ -42,6 +42,33 @@ def test_bridge_creates_identified_waiting_job(tmp_path: Path) -> None:
     assert response["job"]["status"] == "completed"
 
 
+def test_bridge_force_regeneration_discards_only_the_selected_cached_language_pair(tmp_path: Path) -> None:
+    started = Event()
+    release = Event()
+
+    def runner(job: object, report: object) -> list[dict]:
+        started.set()
+        release.wait(timeout=1)
+        return [{"id": "fresh", "start": 0, "end": 1, "originalText": "Fresh", "translatedText": "Mới"}]
+
+    video = _video(tmp_path, "video.mp4")
+    cache = SubtitleCache(db_path=tmp_path / "cache.db")
+    bridge = BridgeApi(port=8080, cache=cache, job_runner=runner)
+    bridge.save_cached_subtitles(video, "en", "vi", [{"id": "old", "start": 0, "end": 1, "originalText": "Old", "translatedText": "Cũ"}])
+    bridge.save_cached_subtitles(video, "en", "ja", [{"id": "other", "start": 0, "end": 1, "originalText": "Other", "translatedText": "別"}])
+
+    response = bridge.create_subtitle_job(video, "en", "vi", force=True)
+
+    assert response["ok"] is True
+    assert started.wait(timeout=1)
+    fingerprint = bridge.get_video_fingerprint(video)["fingerprint"]
+    assert cache.get_cues(fingerprint, "en", "vi") is None
+    assert cache.get_cues(fingerprint, "en", "ja") is not None
+
+    release.set()
+    assert _wait_for(bridge, response["job"]["id"], {"completed"})["cues"][0]["id"] == "fresh"
+
+
 def test_bridge_runs_jobs_fifo_and_keeps_results_isolated(tmp_path: Path) -> None:
     started_first = Event()
     release_first = Event()

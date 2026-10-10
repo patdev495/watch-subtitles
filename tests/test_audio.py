@@ -29,6 +29,26 @@ def test_extract_audio_nonexistent_file_raises():
         extract_audio("non_existent_file.mp4")
 
 
+def test_extract_audio_decodes_ffmpeg_output_as_utf8_safely(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    input_file = tmp_path / "input.mp4"
+    input_file.write_bytes(b"video")
+    output_file = tmp_path / "audio.wav"
+    recorded_options: dict[str, object] = {}
+
+    def fake_run(_cmd: list[str], **options: object) -> subprocess.CompletedProcess[str]:
+        recorded_options.update(options)
+        return subprocess.CompletedProcess(_cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(audio, "get_ffmpeg_path", lambda: "ffmpeg")
+    monkeypatch.setattr(audio.subprocess, "run", fake_run)
+
+    assert extract_audio(input_file, output_file) == output_file
+    assert recorded_options["encoding"] == "utf-8"
+    assert recorded_options["errors"] == "replace"
+
+
 def test_extract_audio_real_file():
     # Generate a small 1-second test audio file using ffmpeg
     with tempfile.TemporaryDirectory() as tmp:

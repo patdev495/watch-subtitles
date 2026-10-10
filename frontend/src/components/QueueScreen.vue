@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
 import { ArrowLeft, CheckCircle2, Clock3, Film, Languages, LoaderCircle, Play, Plus, RotateCcw, Sparkles, Trash2, XCircle } from 'lucide-vue-next';
-import { SUPPORTED_LANGUAGES } from '../languages';
+import { SUPPORTED_LANGUAGES, SUPPORTED_SOURCE_LANGUAGES } from '../languages';
 import type { SubtitleJob } from '../types';
 
 export interface QueuedVideo { path: string; filename: string; cachedPairs?: [string, string][]; }
-export interface QueueGenerationRequest { video: QueuedVideo; source: string; target: string; }
+export interface QueueGenerationRequest { video: QueuedVideo; source: string; target: string; force: boolean; }
 
 const props = defineProps<{ videos: QueuedVideo[]; jobs: SubtitleJob[]; sourceLanguage: string; targetLanguage: string; }>();
 const emit = defineEmits<{
   (event: 'add'): void;
-  (event: 'generate', video: QueuedVideo, source: string, target: string): void;
+  (event: 'generate', video: QueuedVideo, source: string, target: string, force: boolean): void;
   (event: 'generate-all', requests: QueueGenerationRequest[]): void;
-  (event: 'play', video: QueuedVideo): void;
+  (event: 'play', video: QueuedVideo, source: string, target: string): void;
   (event: 'remove-video', video: QueuedVideo): void;
   (event: 'retry', jobId: string): void;
   (event: 'remove-job', jobId: string): void;
@@ -22,7 +22,8 @@ const emit = defineEmits<{
 const activeJobs = computed(() => props.jobs.filter((job) => ['waiting', 'processing'].includes(job.status)).length);
 const completedJobs = computed(() => props.jobs.filter((job) => job.status === 'completed').length);
 const selection = reactive<Record<string, { source: string; target: string }>>({});
-const languages = SUPPORTED_LANGUAGES;
+const sourceLanguages = SUPPORTED_SOURCE_LANGUAGES;
+const targetLanguages = SUPPORTED_LANGUAGES;
 function jobsFor(video: QueuedVideo): SubtitleJob[] { return props.jobs.filter((job) => job.video_path === video.path); }
 function latestJob(video: QueuedVideo): SubtitleJob | undefined { return jobsFor(video).at(-1); }
 function pairFor(video: QueuedVideo): { source: string; target: string } { return selection[video.path] ?? { source: props.sourceLanguage, target: props.targetLanguage }; }
@@ -47,7 +48,7 @@ function stateLabel(job?: SubtitleJob): string {
       <div class="queue-actions">
         <button class="quiet-button" @click="emit('back')"><ArrowLeft :size="17" aria-hidden="true" /> Trình phát</button>
         <button class="secondary-button" @click="emit('add')"><Plus :size="17" aria-hidden="true" /> Thêm video</button>
-        <button class="primary-button" :disabled="videos.length === 0" @click="emit('generate-all', videos.map((video) => ({ video, ...pairFor(video) })))"><Sparkles :size="17" aria-hidden="true" /> Tạo tất cả</button>
+        <button class="primary-button" :disabled="videos.length === 0" @click="emit('generate-all', videos.map((video) => ({ video, ...pairFor(video), force: hasCache(video) })))"><Sparkles :size="17" aria-hidden="true" /> Tạo tất cả</button>
       </div>
     </header>
 
@@ -72,9 +73,9 @@ function stateLabel(job?: SubtitleJob): string {
           <strong :title="video.filename">{{ video.filename }}</strong>
           <div class="video-meta">
             <span class="language-pair"><Languages :size="14" aria-hidden="true" />
-              <label class="sr-only" :for="`source-${index}`">Ngôn ngữ nguồn</label><select :id="`source-${index}`" data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in languages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
+              <label class="sr-only" :for="`source-${index}`">Ngôn ngữ nguồn</label><select :id="`source-${index}`" data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in sourceLanguages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
               <span aria-hidden="true">→</span>
-              <label class="sr-only" :for="`target-${index}`">Ngôn ngữ đích</label><select :id="`target-${index}`" data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in languages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
+              <label class="sr-only" :for="`target-${index}`">Ngôn ngữ đích</label><select :id="`target-${index}`" data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in targetLanguages" :key="language.code" :value="language.code">{{ language.name }}</option></select>
             </span>
             <span v-if="latestJob(video)" :class="['state-pill', latestJob(video)?.status]">
               <LoaderCircle v-if="latestJob(video)?.status === 'processing'" :size="13" aria-hidden="true" />
@@ -89,9 +90,9 @@ function stateLabel(job?: SubtitleJob): string {
           <p v-else-if="jobsFor(video).length > 1" class="job-history">{{ jobsFor(video).map((job) => `${job.source_language}→${job.target_language}`).join('  ·  ') }}</p>
         </div>
         <div class="video-actions">
-          <button data-test="play-video" class="secondary-button" @click="emit('play', video)"><Play :size="16" aria-hidden="true" /> Xem</button>
+          <button data-test="play-video" class="secondary-button" @click="emit('play', video, pairFor(video).source, pairFor(video).target)"><Play :size="16" aria-hidden="true" /> Xem</button>
           <button v-if="latestJob(video)?.status === 'failed'" data-test="retry-job" class="secondary-button" @click="emit('retry', latestJob(video)?.id ?? '')"><RotateCcw :size="16" aria-hidden="true" /> Thử lại</button>
-          <button v-else data-test="generate-video" class="primary-button" :disabled="['waiting', 'processing'].includes(latestJob(video)?.status ?? '')" @click="emit('generate', video, pairFor(video).source, pairFor(video).target)"><Sparkles :size="16" aria-hidden="true" /> {{ hasCache(video) ? 'Tạo lại phụ đề' : 'Tạo phụ đề' }}</button>
+          <button v-else data-test="generate-video" class="primary-button" :disabled="['waiting', 'processing'].includes(latestJob(video)?.status ?? '')" @click="emit('generate', video, pairFor(video).source, pairFor(video).target, hasCache(video))"><Sparkles :size="16" aria-hidden="true" /> {{ hasCache(video) ? 'Tạo lại phụ đề' : 'Tạo phụ đề' }}</button>
           <button v-if="latestJob(video)?.status === 'waiting'" data-test="remove-job" class="icon-button" title="Xóa job đang chờ" aria-label="Xóa job đang chờ" @click="emit('remove-job', latestJob(video)?.id ?? '')"><XCircle :size="17" aria-hidden="true" /></button>
           <button class="icon-button danger" :disabled="latestJob(video)?.status === 'processing'" title="Xóa video khỏi hàng đợi" aria-label="Xóa video khỏi hàng đợi" @click="emit('remove-video', video)"><Trash2 :size="17" aria-hidden="true" /></button>
         </div>

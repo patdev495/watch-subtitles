@@ -41,7 +41,9 @@ function loadMockCues(): void {
 const { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo } = useSubtitleQueue(
   currentFilePath,
   (job, previous) => {
-    if (job.video_path === currentFilePath.value) {
+    if (job.video_path === currentFilePath.value
+      && job.source_language === sourceLanguage.value
+      && job.target_language === targetLanguage.value) {
       showPipelineProgress.value = true;
       pipelineStatus.value = { status: job.status === 'completed' ? 'completed' : job.status === 'failed' || job.status === 'cancelled' ? 'error' : 'running', progress: job.progress, step: job.step, cues: job.cues, error: job.error };
       if (job.status === 'completed') {
@@ -112,9 +114,8 @@ async function loadSubtitlesForVideo(filePath: string, source: string, target: s
   hasSubtitles.value = false;
   if (window.pywebview?.api && filePath) {
     try {
-      const pairs = await window.pywebview.api.get_cached_subtitle_languages(filePath);
-      hasSubtitles.value = pairs.ok && pairs.language_pairs.length > 0;
       const res = await window.pywebview.api.get_cached_subtitles(filePath, source, target);
+      hasSubtitles.value = res.cached && res.cues.length > 0;
       if (res.cached && res.cues && res.cues.length > 0) {
         cues.value = res.cues;
         return;
@@ -122,11 +123,27 @@ async function loadSubtitlesForVideo(filePath: string, source: string, target: s
     } catch (err) {
       console.warn('Error reading subtitle cache:', err);
     }
+    cues.value = [];
+    return;
   }
   loadMockCues();
 }
 
-async function handleGenerateSubtitles(source: string, target: string): Promise<void> {
+async function handleSourceLanguageChange(language: string): Promise<void> {
+  sourceLanguage.value = language;
+  if (currentFilePath.value) {
+    await loadSubtitlesForVideo(currentFilePath.value, language, targetLanguage.value);
+  }
+}
+
+async function handleTargetLanguageChange(language: string): Promise<void> {
+  targetLanguage.value = language;
+  if (currentFilePath.value) {
+    await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, language);
+  }
+}
+
+async function handleGenerateSubtitles(source: string, target: string, force: boolean): Promise<void> {
   if (!currentFilePath.value && !window.pywebview?.api) {
     // Dev browser simulation
     isGenerating.value = true;
@@ -167,12 +184,16 @@ async function handleGenerateSubtitles(source: string, target: string): Promise<
   }
 
   if (window.pywebview?.api) {
-    await createSubtitleJob({ path: currentFilePath.value, filename: currentFilename.value }, source, target);
+    if (force) {
+      cues.value = [];
+      hasSubtitles.value = false;
+    }
+    await createSubtitleJob({ path: currentFilePath.value, filename: currentFilename.value }, source, target, force);
     return;
   }
 }
 
-async function handleOpenVideo(videoPath?: string): Promise<void> {
+async function handleOpenVideo(videoPath?: string, source?: string, target?: string): Promise<void> {
   if (!window.pywebview?.api) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -193,6 +214,8 @@ async function handleOpenVideo(videoPath?: string): Promise<void> {
   try {
     const res: VideoDialogResponse = videoPath ? await window.pywebview.api.load_video_path(videoPath) : await window.pywebview.api.open_video_dialog();
     if (!res.cancelled && res.stream_url && res.filename) {
+      if (source) sourceLanguage.value = source;
+      if (target) targetLanguage.value = target;
       videoSrc.value = res.stream_url;
       currentFilename.value = res.filename;
       currentFilePath.value = res.path || '';
@@ -282,8 +305,10 @@ onMounted(() => {
 
     <!-- Header bar -->
     <HeaderBar
-      v-model:source-language="sourceLanguage"
-      v-model:target-language="targetLanguage"
+      :source-language="sourceLanguage"
+      :target-language="targetLanguage"
+      @update:source-language="handleSourceLanguageChange"
+      @update:target-language="handleTargetLanguageChange"
       :current-filename="currentFilename"
       :backend-connected="backendConnected"
       :is-generating="isGenerating"
@@ -305,7 +330,7 @@ onMounted(() => {
       @add="addQueuedVideo"
       @generate="createSubtitleJob"
       @generate-all="generateAllQueuedVideos"
-      @play="video => handleOpenVideo(video.path)"
+      @play="(video, source, target) => handleOpenVideo(video.path, source, target)"
       @retry="retrySubtitleJob"
       @remove-job="removeSubtitleJob"
       @remove-video="removeQueuedVideo"

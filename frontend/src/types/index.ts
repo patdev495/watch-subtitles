@@ -102,7 +102,7 @@ export interface PyWebViewApi {
   extract_video_audio: (video_path: string) => Promise<AudioExtractionResponse>;
   start_subtitles_pipeline: (video_path: string, source_language: string, target_language: string, force?: boolean) => Promise<{ ok: boolean; message?: string; error?: string }>;
   get_pipeline_status: () => Promise<PipelineStatus>;
-  create_subtitle_job: (videoPath: string, sourceLanguage: string, targetLanguage: string) => Promise<SubtitleJobResponse>;
+  create_subtitle_job: (videoPath: string, sourceLanguage: string, targetLanguage: string, force?: boolean) => Promise<SubtitleJobResponse>;
   get_subtitle_job: (jobId: string) => Promise<SubtitleJobResponse>;
   list_subtitle_jobs: () => Promise<{ ok: boolean; jobs: SubtitleJob[] }>;
   remove_subtitle_job: (jobId: string) => Promise<SubtitleJobResponse>;

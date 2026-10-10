@@ -71,7 +71,12 @@ def extract_audio(
         str(dest),
     ]
 
-    run_options: dict[str, object] = {"capture_output": True, "text": True}
+    run_options: dict[str, object] = {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+    }
     if os.name == "nt":
         run_options["creationflags"] = subprocess.CREATE_NO_WINDOW
     result = subprocess.run(cmd, **run_options)

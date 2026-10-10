@@ -1,0 +1,24 @@
+# Deepgram STT cho phụ đề phim Hoa ngữ (2026-10-09)
+
+## Kết luận
+
+- **Ứng viên một-lượt tốt nhất: `nova-3` với `language=zh-CN`**, không phải `language=multi`. Deepgram gọi Nova-3 là model ASR tổng quát mạnh nhất cho audio thu sẵn và streaming; tiếng Quan thoại giản thể được hỗ trợ với `zh`, `zh-CN`, `zh-Hans` từ 2026-03-31. Chế độ `multi` của Nova-3 hiện chỉ liệt kê 10 ngôn ngữ, **không có tiếng Trung**. [Models & Languages](https://developers.deepgram.com/docs/models-languages-overview/), [changelog 2026-03-31](https://developers.deepgram.com/changelog/2026/3/31)
+- **Tốc độ:** Deepgram tuyên bố độ trễ suy luận Nova-3 tương đương Nova-2; không có số liệu chính thức cho riêng phim tiếng Trung 43 phút. Không nên hứa Nova-3 nhanh hơn Nova-2. Trang hướng dẫn API thu sẵn nói yêu cầu xử lý quá 10 phút (Nova/Base/Enhanced) bị 504; đó là **thời gian xử lý**, không phải giới hạn video 10 phút. Một yêu cầu dài có thể vẫn thành công nếu xử lý dưới ngưỡng. [Changelog giới thiệu Nova-3](https://developers.deepgram.com/changelog/2025/2/12), [Pre-recorded audio](https://developers.deepgram.com/docs/pre-recorded-audio)
+- **Không có model Deepgram khác vừa được xác nhận chính xác hơn Nova-3 vừa nhanh hơn cho case này.** Đây là suy luận dựa trên bảng model chính thức; Deepgram không công bố phép đo trực tiếp Nova-3-vs-Nova-2 cho phim Hoa ngữ. Đánh giá thực tế phải đo trên chính video, nhất là tỷ lệ đoạn thoại bị bỏ sót, CER, độ lệch word timestamp và thời gian xử lý. [Models & Languages](https://developers.deepgram.com/docs/models-languages-overview/)
+- **Flux không hợp:** chỉ chạy streaming cho voice agent/turn detection; các ngôn ngữ của `flux-general-multi` hiện không gồm tiếng Trung. [Models & Languages](https://developers.deepgram.com/docs/models-languages-overview/), [Flux-vs-Nova migration](https://developers.deepgram.com/docs/flux/nova-3-migration)
+- **Whisper Cloud không phải lời giải nhanh:** có tiếng Trung, các cỡ tiny/base/small/medium/large, nhưng chính Deepgram nói Whisper kém khả năng mở rộng và model không-Whisper trả kết quả nhanh hơn. Whisper Cloud cũng không hỗ trợ live streaming. [Whisper Cloud](https://developers.deepgram.com/docs/deepgram-whisper-cloud)
+
+## Lựa chọn kỹ thuật hợp lý cho app
+
+1. Nếu ưu tiên tốc độ/chi phí, thử **Nova-3 `zh-CN` một lượt** trên toàn video. Chia audio thành các đoạn có overlap ngắn và gửi một số đoạn song song *có thể* rút ngắn thời gian chờ tổng thể, nhưng đây là thiết kế cần đo vì chi phí request, biên cắt, giới hạn đồng thời và việc ghép timestamp có thể tạo lỗi mới. Deepgram hỗ trợ batch Nova-3 và giới hạn đồng thời tùy gói/khu vực. [Pre-recorded audio](https://developers.deepgram.com/docs/pre-recorded-audio), [API rate limits](https://developers.deepgram.com/reference/api-rate-limits)
+2. Nếu ưu tiên độ phủ lời thoại, giữ **Nova-2 + Nova-3 quét khoảng trống** như code hiện tại, hoặc so sánh với Nova-3 chính + Nova-2 quét khoảng trống. Hai model đã bỏ sót những vùng khác nhau trong thử nghiệm nội bộ trên video người dùng; đây là bằng chứng cục bộ, **không phải benchmark của Deepgram**. Nên benchmark cả hai chiều trước khi đổi mặc định.
+3. **Chỉ định `language=zh-CN` khi đã biết nguồn**. Deepgram nói chỉ định một ngôn ngữ sẽ chỉ chép lời ngôn ngữ đó; `detect_language=true` tìm ngôn ngữ chiếm ưu thế, không tương đương nhận diện mọi câu code-switch. Tránh hiểu `language=multi` là “mọi ngôn ngữ”. [Languages Support](https://developers.deepgram.com/docs/language), [Pre-recorded API](https://developers.deepgram.com/reference/speech-to-text/listen-pre-recorded?explorer=true), [Models & Languages](https://developers.deepgram.com/docs/models-languages-overview/)
+4. Tên nhân vật/địa danh bị sai có thể thử `keyterm` của Nova-3; Deepgram hỗ trợ các thuật ngữ quan trọng nhưng không bảo đảm chữa lỗi mất cả câu hoặc timestamp. [Keyterm prompting](https://developers.deepgram.com/docs/keyterm)
+
+## Giá niêm yết để ước lượng, không phải dự báo hóa đơn
+
+Trang giá Deepgram lúc tra cứu niêm yết **pre-recorded Nova-3 monolingual $0.0043/phút**, multilingual $0.0052/phút, Whisper Large $0.0048/phút (Pay As You Go). Với 43 phút audio, một pass Nova-3 monolingual xấp xỉ **$0.185** trước add-on/lượt quét bổ sung; hai pass hoặc quét khoảng trống tính thêm audio tương ứng. Giá có thể đổi; kiểm tra lại trước khi triển khai. [Deepgram Pricing](https://deepgram.com/pricing)
+
+## Caveat benchmark
+
+Tuyên bố giảm WER của Nova-3 trong docs/changelog là **so với đối thủ**, không chứng minh mức cải thiện cụ thể so với Nova-2 hay riêng tiếng Trung. Deepgram cũng nói Nova-3 có độ chính xác word timestamp tốt hơn, nhưng không cung cấp sai số timestamp riêng cho phim Hoa ngữ. [Models & Languages](https://developers.deepgram.com/docs/models-languages-overview/), [Nova-3 launch](https://developers.deepgram.com/changelog/2025/2/12)

@@ -25,6 +25,10 @@ class STTProvider(ABC):
         """Lightweight credential check. Returns True if key appears valid."""
         ...
 
+    def detected_language(self) -> str | None:
+        """Return the language found during the last automatic transcription, if any."""
+        return None
+
 
 TranscriptionProvider = STTProvider
 

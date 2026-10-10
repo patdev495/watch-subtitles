@@ -67,18 +67,23 @@ function onSeek(time: number) {
   if (videoRef.value) {
     videoRef.value.currentTime = time;
     currentTime.value = time;
+    emit('timeupdate', time);
   }
 }
 
 function seekRelative(delta: number) {
   if (!videoRef.value) return;
-  videoRef.value.currentTime = Math.max(0, Math.min(duration.value, videoRef.value.currentTime + delta));
+  const nextTime = Math.max(0, Math.min(duration.value, videoRef.value.currentTime + delta));
+  videoRef.value.currentTime = nextTime;
+  currentTime.value = nextTime;
+  emit('timeupdate', nextTime);
 }
 
 function seekTo(time: number) {
   if (!videoRef.value) return;
   videoRef.value.currentTime = time;
   currentTime.value = time;
+  emit('timeupdate', time);
 }
 
 function toggleMute() {

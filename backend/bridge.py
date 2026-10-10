@@ -189,8 +189,10 @@ class BridgeApi:
 
     # ── Subtitle Jobs ───────────────────────────────────────────────────────────
 
-    def create_subtitle_job(self, video_path: str, source_language: str, target_language: str) -> Dict[str, Any]:
-        """Queue one identified Subtitle Job, or complete it from Subtitle Cache."""
+    def create_subtitle_job(
+        self, video_path: str, source_language: str, target_language: str, force: bool = False
+    ) -> Dict[str, Any]:
+        """Queue one Subtitle Job, optionally discarding its cached language pair first."""
         if not os.path.isfile(video_path):
             return {"ok": False, "error": f"Video file not found: {video_path}"}
         job = SubtitleJob(
@@ -200,6 +202,8 @@ class BridgeApi:
         )
         try:
             fingerprint = compute_video_fingerprint(video_path)
+            if force:
+                self._cache.delete_cues(fingerprint, source_language, target_language)
             cached_cues = self._cache.get_cues(fingerprint, source_language, target_language)
             if cached_cues is not None:
                 completed = self._job_scheduler.complete_from_cache(job, cached_cues)
