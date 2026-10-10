@@ -60,10 +60,15 @@ def test_save_creates_parent_directories():
 def test_provider_fields_persist():
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "settings.json"
-        original = AppSettings(stt_provider="deepgram", translation_provider="deepl")
+        original = AppSettings(
+            assemblyai_api_key="aai-test-789",
+            stt_provider="assemblyai",
+            translation_provider="deepl",
+        )
         save_settings(original, path=path)
         loaded = load_settings(path=path)
-        assert loaded.stt_provider == "deepgram"
+        assert loaded.assemblyai_api_key == "aai-test-789"
+        assert loaded.stt_provider == "assemblyai"
         assert loaded.translation_provider == "deepl"
 
 

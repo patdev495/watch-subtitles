@@ -33,6 +33,14 @@ class MockTrans(TranslationProvider):
         return bool(api_key)
 
 
+class KeyRecordingSTT(MockSTT):
+    received_keys: list[str] = []
+
+    def __init__(self, api_key: str = "") -> None:
+        super().__init__(api_key)
+        self.received_keys.append(api_key)
+
+
 def test_bridge_start_pipeline_missing_keys():
     with tempfile.TemporaryDirectory() as tmp:
         video_path = Path(tmp) / "video.mp4"
@@ -45,7 +53,6 @@ def test_bridge_start_pipeline_missing_keys():
 
 
 def test_bridge_start_pipeline_background_execution():
-    register_stt_provider("test_stt", MockSTT)
     register_translation_provider("test_trans", MockTrans)
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -58,16 +65,17 @@ def test_bridge_start_pipeline_background_execution():
         bridge.set_window(mock_window)
 
         settings = AppSettings(
-            deepgram_api_key="dg-key",
+            assemblyai_api_key="aai-key",
             deepl_api_key="dl-key",
-            stt_provider="test_stt",
+            stt_provider="assemblyai",
             translation_provider="test_trans",
         )
 
         dummy_audio = Path(tmp) / "audio.wav"
         dummy_audio.write_bytes(b"dummy wav")
 
-        with patch("backend.bridge.load_settings", return_value=settings), \
+        with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": MockSTT}), \
+             patch("backend.bridge.load_settings", return_value=settings), \
              patch("backend.pipeline.extract_audio", return_value=dummy_audio):
             start_res = bridge.start_subtitles_pipeline(str(video_path), "en", "vi")
             assert start_res["ok"] is True
@@ -87,3 +95,27 @@ def test_bridge_start_pipeline_background_execution():
 
             # Check that evaluate_js was invoked with progress
             assert mock_window.evaluate_js.called
+
+
+def test_bridge_uses_assemblyai_credential_for_selected_stt_provider():
+    KeyRecordingSTT.received_keys.clear()
+    with tempfile.TemporaryDirectory() as tmp:
+        video_path = Path(tmp) / "video.mp4"
+        video_path.write_bytes(b"dummy video" * 100)
+        audio_path = Path(tmp) / "audio.wav"
+        audio_path.write_bytes(b"dummy wav")
+        bridge = BridgeApi(port=8080, cache=SubtitleCache(db_path=Path(tmp) / "cache.db"))
+        settings = AppSettings(
+            assemblyai_api_key="aai-key",
+            stt_provider="assemblyai",
+            translation_provider="test-trans",
+        )
+        register_translation_provider("test-trans", MockTrans)
+
+        with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": KeyRecordingSTT}), patch(
+            "backend.bridge.load_settings", return_value=settings
+        ), patch("backend.bridge.threading.Thread"):
+            result = bridge.start_subtitles_pipeline(str(video_path), "en", "vi")
+
+            assert result["ok"] is True
+            assert KeyRecordingSTT.received_keys == ["aai-key"]

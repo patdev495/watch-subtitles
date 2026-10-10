@@ -14,6 +14,18 @@ from backend.pipeline import run_subtitling_pipeline
 from backend.export import format_srt, format_vtt
 from backend.jobs import DuplicateActiveJobError, JobRunner, SubtitleJob, SubtitleJobScheduler
 
+
+STT_API_KEY_FIELDS: dict[str, str] = {
+    "deepgram": "deepgram_api_key",
+    "assemblyai": "assemblyai_api_key",
+}
+
+
+def _stt_api_key(settings: AppSettings, provider_name: str) -> str:
+    """Return the credential assigned to a configured transcription provider."""
+    field_name = STT_API_KEY_FIELDS.get(provider_name)
+    return str(getattr(settings, field_name, "")) if field_name else ""
+
 class PingResponse(BaseModel):
     status: str
     message: str
@@ -251,7 +263,7 @@ class BridgeApi:
         trans_cls = TRANSLATION_PROVIDERS.get(trans_name)
         if not stt_cls or not trans_cls:
             raise RuntimeError("Transcription hoặc Translation Provider chưa được đăng ký")
-        stt_key = settings.deepgram_api_key if stt_name == "deepgram" else "custom-key"
+        stt_key = _stt_api_key(settings, stt_name)
         trans_key = settings.deepl_api_key if trans_name == "deepl" else ""
         if not stt_key or (trans_name == "deepl" and not trans_key):
             raise RuntimeError("Chưa cấu hình API key cho Transcription hoặc Translation Provider.")
@@ -365,9 +377,9 @@ class BridgeApi:
             return {"ok": False, "error": f"Translation Provider '{trans_name}' not registered"}
 
         # Check API keys
-        stt_key = settings.deepgram_api_key if stt_name == "deepgram" else "custom-key"
+        stt_key = _stt_api_key(settings, stt_name)
         if not stt_key:
-            return {"ok": False, "error": "Chưa cấu hình API key cho Deepgram trong Cài đặt."}
+            return {"ok": False, "error": "Chưa cấu hình API key cho Transcription Provider trong Cài đặt."}
 
         trans_key = settings.deepl_api_key if trans_name == "deepl" else ""
         if trans_name == "deepl" and not trans_key:

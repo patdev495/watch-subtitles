@@ -53,6 +53,10 @@ def test_stt_provider_extensibility():
     assert instance.validate_key("invalid") is False
 
 
+def test_assemblyai_is_registered_as_an_stt_provider():
+    assert "assemblyai" in STT_PROVIDERS
+
+
 def test_translation_provider_extensibility():
     register_translation_provider("custom_trans", MockCustomTranslation)
     assert "custom_trans" in TRANSLATION_PROVIDERS

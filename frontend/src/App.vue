@@ -63,6 +63,7 @@ const { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubt
 const settingsOpen = ref<boolean>(false);
 const settings = ref<AppSettings>({
   deepgram_api_key: '',
+  assemblyai_api_key: '',
   deepl_api_key: '',
   default_target_language: 'vi',
   stt_provider: 'deepgram',

@@ -5,12 +5,14 @@ Adding a new provider:
   2. Register it here.
 """
 from .base import STTProvider, TranslationProvider, TTSProvider, TranscriptionProvider
+from .assemblyai import AssemblyAIProvider
 from .deepgram import DeepgramProvider
 from .deepl import DeepLProvider
 from .google_translate import GoogleTranslateProvider
 
 STT_PROVIDERS: dict[str, type[STTProvider]] = {
     "deepgram": DeepgramProvider,
+    "assemblyai": AssemblyAIProvider,
 }
 
 TRANSLATION_PROVIDERS: dict[str, type[TranslationProvider]] = {
@@ -39,6 +41,7 @@ __all__ = [
     "TranslationProvider",
     "TTSProvider",
     "DeepgramProvider",
+    "AssemblyAIProvider",
     "DeepLProvider",
     "GoogleTranslateProvider",
     "STT_PROVIDERS",

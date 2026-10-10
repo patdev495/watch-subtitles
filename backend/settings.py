@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 
 class AppSettings(BaseModel):
     deepgram_api_key: str = ""
+    assemblyai_api_key: str = ""
     deepl_api_key: str = ""
     default_target_language: str = "vi"
     stt_provider: str = "deepgram"

@@ -22,13 +22,18 @@ watch(() => props.initialSettings, (v) => {
 
 const isSaving = ref(false);
 const saveError = ref('');
-const deepgramStatus = ref<TestConnectionResponse | null>(null);
+const sttStatus = ref<TestConnectionResponse | null>(null);
 const deeplStatus = ref<TestConnectionResponse | null>(null);
-const isTestingDeepgram = ref(false);
+const isTestingStt = ref(false);
 const isTestingDeepl = ref(false);
 
 watch(() => form.value.deepgram_api_key, () => {
-  deepgramStatus.value = null;
+  sttStatus.value = null;
+  saveError.value = '';
+});
+
+watch(() => form.value.assemblyai_api_key, () => {
+  sttStatus.value = null;
   saveError.value = '';
 });
 
@@ -42,32 +47,39 @@ watch(() => form.value.translation_provider, () => {
   saveError.value = '';
 });
 
+watch(() => form.value.stt_provider, () => {
+  sttStatus.value = null;
+  saveError.value = '';
+});
+
 const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES.map(({ code: value, name: label }) => ({ value, label }));
 
-async function testDeepgram(): Promise<boolean> {
-  const key = form.value.deepgram_api_key.trim();
+async function testStt(): Promise<boolean> {
+  const key = (form.value.stt_provider === 'assemblyai'
+    ? form.value.assemblyai_api_key
+    : form.value.deepgram_api_key).trim();
   if (!key) {
-    deepgramStatus.value = null;
+    sttStatus.value = null;
     return true;
   }
-  isTestingDeepgram.value = true;
-  deepgramStatus.value = null;
+  isTestingStt.value = true;
+  sttStatus.value = null;
   try {
     if (window.pywebview?.api) {
       const res = await window.pywebview.api.test_connection(
         'stt', form.value.stt_provider, key,
       );
-      deepgramStatus.value = res;
+      sttStatus.value = res;
       return res.ok;
     } else {
-      deepgramStatus.value = { ok: false, message: 'pywebview bridge not available in browser mode' };
+      sttStatus.value = { ok: false, message: 'pywebview bridge not available in browser mode' };
       return false;
     }
   } catch {
-    deepgramStatus.value = { ok: false, message: 'Kiểm tra kết nối thất bại' };
+    sttStatus.value = { ok: false, message: 'Kiểm tra kết nối thất bại' };
     return false;
   } finally {
-    isTestingDeepgram.value = false;
+    isTestingStt.value = false;
   }
 }
 
@@ -104,12 +116,12 @@ async function handleSave() {
 
   try {
     // Kiểm tra tính hợp lệ của API key ngay lập tức trước khi lưu
-    const [deepgramOk, deeplOk] = await Promise.all([
-      testDeepgram(),
+    const [sttOk, deeplOk] = await Promise.all([
+      testStt(),
       testDeepl(),
     ]);
 
-    if (!deepgramOk || !deeplOk) {
+    if (!sttOk || !deeplOk) {
       saveError.value = 'API key không hợp lệ. Vui lòng kiểm tra lại trước khi lưu.';
       return;
     }
@@ -119,6 +131,7 @@ async function handleSave() {
       const saved = await window.pywebview.api.save_settings({
         ...form.value,
         deepgram_api_key: form.value.deepgram_api_key.trim(),
+        assemblyai_api_key: form.value.assemblyai_api_key.trim(),
         deepl_api_key: form.value.deepl_api_key.trim(),
       });
       emit('saved', saved);
@@ -127,6 +140,7 @@ async function handleSave() {
       emit('saved', {
         ...form.value,
         deepgram_api_key: form.value.deepgram_api_key.trim(),
+        assemblyai_api_key: form.value.assemblyai_api_key.trim(),
         deepl_api_key: form.value.deepl_api_key.trim(),
       });
     }
@@ -168,13 +182,18 @@ function close() {
               <span>{{ saveError }}</span>
             </div>
 
-            <!-- Deepgram STT -->
+            <!-- Transcription provider -->
             <section class="settings-section">
               <div class="section-label">
-                <span class="section-title">Deepgram (STT)</span>
+                <span class="section-title">Nhận diện giọng nói (STT)</span>
                 <span class="section-badge">{{ form.stt_provider }}</span>
               </div>
-              <div class="field-row">
+              <label class="sr-only" for="stt-provider">Dịch vụ nhận diện giọng nói</label>
+              <select id="stt-provider" v-model="form.stt_provider" class="field-select">
+                <option value="deepgram">Deepgram — cần API key</option>
+                <option value="assemblyai">AssemblyAI — cần API key</option>
+              </select>
+              <div v-if="form.stt_provider === 'deepgram'" class="field-row">
                 <input
                   id="deepgram-key"
                   v-model="form.deepgram_api_key"
@@ -185,21 +204,39 @@ function close() {
                 />
                 <button
                   class="btn-test"
-                  :disabled="!form.deepgram_api_key || isTestingDeepgram"
-                  @click="testDeepgram"
+                  :disabled="!form.deepgram_api_key || isTestingStt"
+                  @click="testStt"
                 >
                   <TestTube2 :size="13" />
-                  {{ isTestingDeepgram ? 'Kiểm tra...' : 'Test' }}
+                  {{ isTestingStt ? 'Kiểm tra...' : 'Test' }}
                 </button>
               </div>
-              <div v-if="deepgramStatus" class="status-row">
-                <component
-                  :is="deepgramStatus.ok ? CheckCircle2 : XCircle"
-                  :size="13"
-                  :class="deepgramStatus.ok ? 'status-ok' : 'status-err'"
+              <div v-else class="field-row">
+                <input
+                  id="assemblyai-key"
+                  v-model="form.assemblyai_api_key"
+                  type="password"
+                  class="field-input"
+                  placeholder="AssemblyAI API key"
+                  autocomplete="off"
                 />
-                <span :class="deepgramStatus.ok ? 'status-ok' : 'status-err'">
-                  {{ deepgramStatus.message }}
+                <button
+                  class="btn-test"
+                  :disabled="!form.assemblyai_api_key || isTestingStt"
+                  @click="testStt"
+                >
+                  <TestTube2 :size="13" />
+                  {{ isTestingStt ? 'Kiểm tra...' : 'Test' }}
+                </button>
+              </div>
+              <div v-if="sttStatus" class="status-row">
+                <component
+                  :is="sttStatus.ok ? CheckCircle2 : XCircle"
+                  :size="13"
+                  :class="sttStatus.ok ? 'status-ok' : 'status-err'"
+                />
+                <span :class="sttStatus.ok ? 'status-ok' : 'status-err'">
+                  {{ sttStatus.message }}
                 </span>
               </div>
             </section>

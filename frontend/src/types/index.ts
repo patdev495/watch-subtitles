@@ -20,6 +20,7 @@ export interface PingResponse {
 
 export interface AppSettings {
   deepgram_api_key: string;
+  assemblyai_api_key: string;
   deepl_api_key: string;
   default_target_language: string;
   stt_provider: string;
