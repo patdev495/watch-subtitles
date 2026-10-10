@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, FileVideo, FolderOpen, Settings, Sparkles } from 'lucide-vue-next';
+import { Activity, FileVideo, FolderOpen, Settings, Subtitles } from 'lucide-vue-next';
 
 withDefaults(defineProps<{ currentFilename?: string; backendConnected: boolean; hasSubtitles?: boolean }>(), {
   currentFilename: '', hasSubtitles: false,
@@ -15,35 +15,33 @@ const emit = defineEmits<{
 <template>
   <header class="header-bar">
     <div class="media-context" :title="currentFilename || 'Chưa chọn video'">
-      <FileVideo :size="18" aria-hidden="true" />
+      <FileVideo :size="16" :stroke-width="1.5" aria-hidden="true" />
       <div><strong>{{ currentFilename || 'Chưa chọn video' }}</strong><span>{{ hasSubtitles ? 'Đã có phụ đề' : 'Chưa có phụ đề' }}</span></div>
     </div>
-    <div class="main-actions">
-      <button class="subtitle-button" aria-label="Phụ đề" @click="emit('open-subtitles')"><Sparkles :size="17" aria-hidden="true" /> Phụ đề</button>
-      <button class="open-button" @click="emit('open-video')"><FolderOpen :size="17" aria-hidden="true" /> Mở video</button>
-    </div>
-    <div class="utility-actions">
-      <button aria-label="Cài đặt API" @click="emit('open-settings')"><Settings :size="18" aria-hidden="true" /></button>
-      <button aria-label="Kiểm tra backend" @click="emit('ping-backend')"><Activity :size="18" aria-hidden="true" /></button>
-      <span class="engine-status">{{ backendConnected ? 'Sẵn sàng' : 'Kết nối' }}</span>
+    <div class="header-actions">
+      <button class="ghost-button subtitle-button" aria-label="Phụ đề" title="Phụ đề" @click="emit('open-subtitles')"><Subtitles :size="16" :stroke-width="1.5" aria-hidden="true" /> Phụ đề</button>
+      <button class="primary-button open-button" @click="emit('open-video')"><FolderOpen :size="16" :stroke-width="1.5" aria-hidden="true" /> Mở video</button>
+      <button class="icon-button" aria-label="Cài đặt API" title="Cài đặt" @click="emit('open-settings')"><Settings :size="18" :stroke-width="1.5" aria-hidden="true" /></button>
+      <button class="status-button" :class="{ ready: backendConnected }" :title="backendConnected ? 'Kiểm tra backend' : 'Kết nối · Kiểm tra backend'" @click="emit('ping-backend')"><Activity :size="16" :stroke-width="1.5" class="status-icon" aria-hidden="true" /><span class="status-dot" aria-hidden="true"></span>{{ backendConnected ? 'Sẵn sàng' : 'Kết nối' }}</button>
     </div>
   </header>
 </template>
 
 <style scoped>
-.header-bar { display: flex; align-items: center; gap: 16px; min-height: 66px; padding: 10px clamp(16px, 2vw, 34px); background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); }
-.media-context { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; color: var(--text-secondary); }
-.media-context div { display: grid; gap: 2px; min-width: 0; }
-.media-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: 13px; font-weight: 600; }
-.media-context span { font-size: 11px; color: var(--text-muted); }
-.main-actions, .utility-actions { display: flex; align-items: center; gap: 7px; }
-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--control-height); padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); color: var(--text-primary); background: var(--bg-control); cursor: pointer; font: 600 12px var(--font-sans); white-space: nowrap; }
-button:hover { background: var(--bg-raised); border-color: var(--text-muted); }
-.subtitle-button { background: var(--accent-soft); border-color: var(--accent-primary); color: var(--accent-hover); }
-.subtitle-button:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--accent-contrast); }
-.open-button { color: var(--accent-contrast); background: var(--accent-primary); border-color: var(--accent-primary); }
-.open-button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.utility-actions button { width: var(--control-height); padding: 0; }
-.engine-status { color: var(--text-muted); font-size: 11px; }
-@media (max-width: 700px) { .header-bar { flex-wrap: wrap; }.utility-actions { display: none; } }
+.header-bar { height: var(--header-height); flex: 0 0 var(--header-height); display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
+.media-context { min-width: 0; flex: 1; display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); }
+.media-context > div { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.media-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: var(--font-file); font-weight: 500; }
+.media-context span { color: var(--text-muted); font-size: var(--font-meta); }
+.header-actions { display: flex; align-items: center; gap: var(--space-2); }
+button { height: var(--control-height); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: var(--font-body); font-weight: 500; white-space: nowrap; }
+.ghost-button:hover, .icon-button:hover, .status-button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.primary-button { background: var(--accent-primary); color: var(--accent-contrast); }
+.primary-button:hover { opacity: .88; }
+.icon-button { width: var(--control-height); padding: 0; }
+.status-button { font-size: var(--font-meta); }
+.status-dot { width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--text-muted); }
+.ready .status-dot { background: var(--success); }
+.status-icon { display: none; }
+@media (max-width: 900px) { .header-bar { gap: var(--space-2); padding: 0 var(--space-3); } .status-button { padding: 0 var(--space-1); } }
 </style>

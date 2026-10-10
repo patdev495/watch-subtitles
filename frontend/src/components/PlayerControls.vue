@@ -1,15 +1,7 @@
 <script setup lang="ts">
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  RotateCcw,
-  RotateCw,
-} from 'lucide-vue-next';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -32,241 +24,47 @@ const emit = defineEmits<{
 }>();
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-
-function onSeek(event: Event) {
-  const val = parseFloat((event.target as HTMLInputElement).value);
-  emit('seek', val);
-}
-
-function onVolumeChange(event: Event) {
-  const val = parseFloat((event.target as HTMLInputElement).value);
-  emit('volume-change', val);
-}
-
-function onRateChange(event: Event) {
-  const val = parseFloat((event.target as HTMLSelectElement).value);
-  emit('playback-rate-change', val);
-}
+function onSeek(event: Event): void { emit('seek', parseFloat((event.target as HTMLInputElement).value)); }
+function onVolumeChange(event: Event): void { emit('volume-change', parseFloat((event.target as HTMLInputElement).value)); }
+function onRateChange(event: Event): void { emit('playback-rate-change', parseFloat((event.target as HTMLSelectElement).value)); }
 </script>
 
 <template>
-  <!-- Timeline Scrubber -->
-  <div class="timeline-box">
-    <div class="timeline-track">
-      <div class="timeline-fill" :style="{ width: `${progressPercent}%` }" />
-    </div>
-    <input
-      type="range"
-      min="0"
-      :max="duration || 100"
-      step="0.05"
-      :value="currentTime"
-      class="timeline-slider"
-      @input="onSeek"
-    />
-  </div>
-
-  <!-- Actions Strip -->
   <div class="actions-strip">
-    <!-- Left: Play/Pause, Replay/Forward, Timecode -->
-    <div class="left-strip">
-      <button
-        class="play-toggle-btn"
-        :title="isPlaying ? 'Tạm dừng (Space)' : 'Phát (Space)'"
-        @click.stop="emit('toggle-play')"
-      >
-        <Pause v-if="isPlaying" :size="20" class="icon-white" />
-        <Play v-else :size="20" class="icon-white" style="margin-left: 2px" />
-      </button>
-
-      <button class="icon-btn" title="Lùi 5s (←)" @click.stop="emit('seek-relative', -5)">
-        <RotateCcw :size="16" />
-      </button>
-      <button class="icon-btn" title="Tiến 5s (→)" @click.stop="emit('seek-relative', 5)">
-        <RotateCw :size="16" />
-      </button>
-
-      <div class="time-counter">
-        <span class="curr-time">{{ formattedCurrentTime }}</span>
-        <span class="divider">/</span>
-        <span class="total-time">{{ formattedDuration }}</span>
-      </div>
+    <button class="icon-btn play-toggle-btn" :title="isPlaying ? 'Tạm dừng (Space)' : 'Phát (Space)'" :aria-label="isPlaying ? 'Tạm dừng' : 'Phát'" @click.stop="emit('toggle-play')">
+      <Pause v-if="isPlaying" :size="18" :stroke-width="1.5" aria-hidden="true" /><Play v-else :size="18" :stroke-width="1.5" aria-hidden="true" />
+    </button>
+    <button class="icon-btn" title="Lùi 10s (←)" aria-label="Lùi 10 giây" @click.stop="emit('seek-relative', -10)"><RotateCcw :size="16" :stroke-width="1.5" aria-hidden="true" /></button>
+    <button class="icon-btn" title="Tiến 10s (→)" aria-label="Tiến 10 giây" @click.stop="emit('seek-relative', 10)"><RotateCw :size="16" :stroke-width="1.5" aria-hidden="true" /></button>
+    <div class="timeline-box">
+      <div class="timeline-track"><div class="timeline-fill" :style="{ width: `${progressPercent}%` }" /></div>
+      <input type="range" min="0" :max="duration || 100" step="0.05" :value="currentTime" class="timeline-slider" aria-label="Tiến trình video" @input="onSeek" />
     </div>
-
-    <!-- Right: Volume, Speed, Fullscreen -->
-    <div class="right-strip">
-      <div class="volume-box">
-        <button class="icon-btn" @click.stop="emit('toggle-mute')">
-          <VolumeX v-if="isMuted || volume === 0" :size="18" />
-          <Volume2 v-else :size="18" />
-        </button>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          :value="isMuted ? 0 : volume"
-          class="vol-slider"
-          @input="onVolumeChange"
-        />
-      </div>
-
-      <div class="speed-box">
-        <select :value="playbackRate" class="speed-select" @change="onRateChange">
-          <option v-for="r in PLAYBACK_RATES" :key="r" :value="r">{{ r }}x</option>
-        </select>
-      </div>
-
-      <button class="icon-btn" title="Toàn màn hình" @click.stop="emit('fullscreen')">
-        <Maximize :size="18" />
-      </button>
+    <div class="time-counter"><span>{{ formattedCurrentTime }}</span><span class="divider">/</span><span>{{ formattedDuration }}</span></div>
+    <div class="volume-box">
+      <button class="icon-btn" :title="isMuted ? 'Bật âm' : 'Tắt âm'" :aria-label="isMuted ? 'Bật âm' : 'Tắt âm'" @click.stop="emit('toggle-mute')"><VolumeX v-if="isMuted || volume === 0" :size="18" :stroke-width="1.5" aria-hidden="true" /><Volume2 v-else :size="18" :stroke-width="1.5" aria-hidden="true" /></button>
+      <input type="range" min="0" max="1" step="0.05" :value="isMuted ? 0 : volume" class="vol-slider" aria-label="Âm lượng" @input="onVolumeChange" />
     </div>
+    <select :value="playbackRate" class="speed-select" aria-label="Tốc độ phát" @change="onRateChange"><option v-for="r in PLAYBACK_RATES" :key="r" :value="r">{{ r }}x</option></select>
+    <button class="icon-btn" title="Toàn màn hình" aria-label="Toàn màn hình" @click.stop="emit('fullscreen')"><Maximize :size="18" :stroke-width="1.5" aria-hidden="true" /></button>
   </div>
 </template>
 
 <style scoped>
-/* Timeline Scrubber */
-.timeline-box {
-  position: relative;
-  width: 100%;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-.timeline-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 4px;
-  border-radius: 9999px;
-  background: var(--border-strong);
-  overflow: hidden;
-}
-
-.timeline-fill {
-  height: 100%;
-  background: var(--accent-primary);
-  border-radius: 9999px;
-  box-shadow: none;
-}
-
-.timeline-slider {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 10;
-}
-
-/* Action Strip */
-.actions-strip {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.left-strip,
-.right-strip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.play-toggle-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: none;
-  transition: background-color var(--transition-fast);
-}
-
-.play-toggle-btn:hover {
-  background: var(--accent-hover);
-}
-
-.icon-white {
-  color: var(--accent-contrast);
-}
-
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
-}
-
-.icon-btn:hover {
-  background: var(--bg-raised);
-  color: var(--text-primary);
-}
-
-.time-counter {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  display: flex;
-  gap: 6px;
-  color: var(--text-primary);
-  background: var(--bg-overlay);
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-}
-
-.time-counter .divider {
-  color: var(--text-muted);
-}
-
-.time-counter .total-time {
-  color: var(--text-muted);
-}
-
-.volume-box {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-overlay);
-  padding: 2px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-}
-
-.vol-slider {
-  width: 65px;
-  height: 4px;
-}
-
-.speed-box .speed-select {
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-}
-@media (max-width: 860px) {
-  .actions-strip { flex-wrap: wrap; gap: 4px; }
-  .left-strip, .right-strip { gap: 6px; }
-  .right-strip { margin-left: auto; }
-}
+.actions-strip { display: flex; align-items: center; gap: var(--space-1); width: 100%; min-width: 0; }
+.icon-btn { flex: 0 0 var(--player-control-size); width: var(--player-control-size); height: var(--player-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-primary); cursor: pointer; }
+.icon-btn:hover { background: var(--bg-overlay); }
+.timeline-box { position: relative; flex: 1; min-width: var(--space-10); height: var(--player-control-size); display: flex; align-items: center; margin: 0 var(--space-2); }
+.timeline-track { width: 100%; height: var(--progress-height); overflow: hidden; border-radius: var(--radius-sm); background: var(--text-muted); transition: height var(--transition-fast); }
+.timeline-box:hover .timeline-track, .timeline-box:focus-within .timeline-track { height: var(--progress-hover-height); }
+.timeline-fill { height: 100%; border-radius: var(--radius-sm); background: var(--accent-primary); }
+.timeline-slider { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.time-counter { display: flex; flex: 0 0 auto; gap: var(--space-1); color: var(--text-primary); font-size: var(--font-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.divider { color: var(--text-secondary); }
+.volume-box { display: flex; align-items: center; gap: var(--space-1); }
+.vol-slider { width: var(--volume-width); height: var(--progress-height); }
+.speed-select { height: var(--control-height); padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-primary); font-size: var(--font-meta); cursor: pointer; }
+.speed-select:hover { background: var(--bg-overlay); }
+@media (max-width: 1100px) { .volume-box .vol-slider { display: none; } }
+@media (max-width: 900px) { .actions-strip { gap: 0; } .timeline-box { margin: 0 var(--space-1); } }
 </style>

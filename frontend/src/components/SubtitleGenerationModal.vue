@@ -4,7 +4,7 @@ import { SUPPORTED_LANGUAGES, SUPPORTED_SOURCE_LANGUAGES } from '../languages';
 import type { PlaybackVideo, SubtitleJob } from '../types';
 import { X } from 'lucide-vue-next';
 
-const props = defineProps<{ open: boolean; videos: PlaybackVideo[]; jobs: SubtitleJob[]; defaultTargetLanguage: string }>();
+const props = defineProps<{ open: boolean; videos: PlaybackVideo[]; jobs: SubtitleJob[]; defaultTargetLanguage: string; activePath?: string }>();
 const emit = defineEmits<{
   (event: 'close'): void;
   (event: 'generate', video: PlaybackVideo, source: string, target: string, force: boolean): void;
@@ -13,6 +13,7 @@ const emit = defineEmits<{
   (event: 'source-change', video: PlaybackVideo, source: string): void;
 }>();
 const selection = reactive<Record<string, { source: string; target: string }>>({});
+const selectedVideo = computed(() => props.videos.find((video) => video.path === props.activePath) ?? props.videos[0]);
 function pairFor(video: PlaybackVideo): { source: string; target: string } {
   return selection[video.path] ?? { source: video.sourceLanguage ?? 'en', target: props.defaultTargetLanguage };
 }
@@ -51,14 +52,17 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
         <button class="close-button" aria-label="Đóng modal phụ đề" @click="emit('close')"><X :size="16" aria-hidden="true" /></button>
       </header>
       <div class="modal-actions"><button :disabled="eligibleRequests.length === 0" @click="emit('generate-all', eligibleRequests)">Tạo tất cả</button></div>
+      <div v-if="selectedVideo" class="active-language-pair">
+        <strong :title="selectedVideo.filename">{{ selectedVideo.filename }}</strong>
+        <div class="language-pair">
+          <label>Nguồn <select data-test="source-language" :value="pairFor(selectedVideo).source" @change="setLanguage(selectedVideo, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+          <label>Đích <select data-test="target-language" :value="pairFor(selectedVideo).target" @change="setLanguage(selectedVideo, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+        </div>
+      </div>
       <p v-if="videos.length === 0" class="empty">Playback Queue chưa có Video.</p>
       <ol v-else class="modal-list">
         <li v-for="video in videos" :key="video.path" class="modal-row">
           <strong>{{ video.filename }}</strong>
-          <div class="language-pair">
-            <label>Nguồn <select data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
-            <label>Đích <select data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
-          </div>
           <span class="availability" :class="{ 'has-cache': video.cachedPairs?.length }">{{ video.cachedPairs?.length ? `Subtitle Availability: ${video.cachedPairs.map(([source, target]) => `${source} → ${target}`).join(', ')}` : 'Chưa có phụ đề' }}</span>
           <span class="job-state" :class="{ 'in-progress': activeJob(video), failed: latestJob(video)?.status === 'failed' }">{{ stateLabel(video) }}</span>
           <p v-if="latestJob(video)?.error" class="job-error">{{ latestJob(video)?.error }}</p>
@@ -73,13 +77,29 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
 </template>
 
 <style scoped>
-.modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 18px; background: var(--bg-backdrop); }
-.generation-modal { width: min(900px, 100%); max-height: min(760px, 92vh); overflow: auto; padding: 24px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); color: var(--text-primary); background: var(--bg-card); box-shadow: var(--shadow-panel); }
-.modal-header { display: flex; justify-content: space-between; gap: 16px; align-items: start; }.modal-header h2 { margin: 0 0 6px; font-size: 18px; letter-spacing: -.02em; }.modal-header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
-button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-height); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); padding: 0 12px; color: var(--text-primary); background: var(--bg-control); cursor: pointer; font-size: 12px; font-weight: 600; }
-button:hover:not(:disabled) { background: var(--bg-raised); border-color: var(--border-strong); }
-.close-button { width: var(--control-height); padding: 0; }
-.modal-actions { display: flex; justify-content: flex-end; margin: 18px 0; }.modal-actions button, .row-actions button:first-child { color: var(--accent-contrast); background: var(--accent-primary); border-color: var(--accent-primary); }.modal-actions button:hover:not(:disabled), .row-actions button:first-child:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
-.modal-list { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }.modal-row { display: grid; gap: 9px; padding: 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-surface); }.modal-row strong { overflow-wrap: anywhere; font-weight: 600; }
-.language-pair, .row-actions { display: flex; flex-wrap: wrap; gap: 10px; }.language-pair label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }.language-pair select { max-width: 180px; min-height: var(--control-height); padding: 0 8px; color: var(--text-primary); background: var(--bg-control); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); }.availability, .job-state, .job-error, .empty { font-size: 12px; }.availability, .empty { color: var(--text-muted); }.availability.has-cache { color: var(--success); }.job-state { color: var(--text-secondary); }.job-state.in-progress { color: var(--warning); }.job-state.failed, .job-error { color: var(--danger); }.job-error { margin: 0; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: var(--space-4); background: var(--bg-backdrop); }
+.generation-modal { width: min(var(--generation-width), 100%); max-height: min(var(--generation-height), 92vh); overflow: auto; padding: var(--space-6); border-radius: var(--radius-card); background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-panel); }
+.modal-header { display: flex; justify-content: space-between; align-items: start; gap: var(--space-4); }
+.modal-header h2 { margin: 0 0 var(--space-1); font-size: var(--font-title); font-weight: 600; }
+.modal-header p { margin: 0; color: var(--text-secondary); font-size: var(--font-body); }
+button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-height); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: var(--font-meta); font-weight: 500; }
+button:hover:not(:disabled) { background: var(--bg-selected); }
+.close-button { width: var(--control-height); padding: 0; background: transparent; }
+.modal-actions { display: flex; justify-content: flex-end; margin: var(--space-4) 0; }
+.modal-actions button { background: var(--accent-primary); color: var(--accent-contrast); }
+.modal-actions button:hover:not(:disabled) { opacity: .88; background: var(--accent-primary); }
+.active-language-pair { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); padding: var(--space-3); border-radius: var(--radius-control); background: var(--bg-hover); }
+.active-language-pair strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-file); font-weight: 500; }
+.modal-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.modal-row { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-control); }
+.modal-row:hover { background: var(--bg-hover); }
+.modal-row strong { overflow-wrap: anywhere; font-size: var(--font-file); font-weight: 500; }
+.language-pair, .row-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.language-pair label { display: flex; align-items: center; gap: var(--space-1); color: var(--text-secondary); font-size: var(--font-meta); }
+.language-pair select { max-width: var(--source-select-width); min-height: var(--control-height); padding: 0 var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); }
+.availability, .job-state, .job-error, .empty { font-size: var(--font-meta); }
+.availability, .empty { color: var(--text-muted); }
+.availability.has-cache, .job-state, .job-state.in-progress { color: var(--text-secondary); }
+.job-state.failed, .job-error { color: var(--text-primary); }
+.job-error { margin: 0; }
 </style>

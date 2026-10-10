@@ -24,8 +24,8 @@ describe('PlaybackQueue', () => {
     });
 
     expect(wrapper.get('[data-test="queue-row-active"]').text()).toContain('a.mp4');
-    expect(wrapper.text()).toContain('en → vi');
-    expect(wrapper.text()).toContain('62%');
+    expect(wrapper.text()).toContain('EN→VI');
+    expect(wrapper.get('.job-indicator').attributes('title')).toBe('62%');
     await wrapper.get('[data-test="queue-select-b"]').trigger('click');
     await wrapper.get('[data-test="queue-remove-b"]').trigger('click');
     expect(wrapper.emitted('select')?.[0]).toEqual([videos[1]]);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import { UploadCloud, FileVideo } from 'lucide-vue-next';
+import { FileVideo } from 'lucide-vue-next';
 import PlayerControls from './PlayerControls.vue';
 
 const props = defineProps<{
@@ -129,7 +129,7 @@ function handleMouseMove() {
   showControls.value = true;
   if (hideControlsTimeout) clearTimeout(hideControlsTimeout);
   if (isPlaying.value) {
-    hideControlsTimeout = window.setTimeout(() => { showControls.value = false; }, 3000);
+    hideControlsTimeout = window.setTimeout(() => { showControls.value = false; }, 2500);
   }
 }
 
@@ -184,16 +184,11 @@ defineExpose({ seekTo });
       <!-- Empty State -->
       <div v-else class="empty-hero">
         <div class="empty-content">
-          <div class="icon-halo">
-            <UploadCloud :size="40" class="upload-icon" />
-          </div>
-          <h2 class="hero-title">Kéo &amp; Thả Video Vào Đây</h2>
-          <p class="hero-subtitle">
-            Hỗ trợ MP4, MKV, WebM, MOV với tốc độ xử lý âm thanh bản địa qua FFmpeg
-          </p>
+          <FileVideo :size="18" :stroke-width="1.5" class="upload-icon" aria-hidden="true" />
+          <p class="hero-subtitle">Kéo &amp; Thả Video Vào Đây</p>
           <button class="browse-btn" @click.stop="emit('open-file')">
-            <FileVideo :size="16" />
-            <span>Chọn video từ máy</span>
+            <FileVideo :size="16" :stroke-width="1.5" aria-hidden="true" />
+            <span>Mở video</span>
           </button>
         </div>
       </div>
@@ -229,125 +224,16 @@ defineExpose({ seekTo });
 </template>
 
 <style scoped>
-.player-card {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 380px;
-  background: var(--bg-player);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  box-shadow: var(--shadow-panel);
-  border: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-}
-
-.player-card:fullscreen { width: 100vw; height: 100vh; border: 0; border-radius: 0; }
-
-.viewport {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.video-core {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Empty State */
-.empty-hero {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-player);
-  padding: 40px;
-}
-
-.empty-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  max-width: 480px;
-}
-
-.icon-halo {
-  width: 80px;
-  height: 80px;
-  border-radius: var(--radius-card);
-  background: var(--accent-soft);
-  border: 1px solid var(--border-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-  box-shadow: none;
-}
-
-.upload-icon { color: var(--accent-hover); }
-
-.hero-title {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.hero-subtitle {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: 24px;
-}
-
-.browse-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  border-radius: var(--radius-control);
-  background: var(--accent-primary);
-  color: var(--accent-contrast);
-  font-weight: 600;
-  font-size: 13px;
-  border: none;
-  cursor: pointer;
-  box-shadow: none;
-  transition: background-color var(--transition-fast);
-}
-
-.browse-btn:hover {
-  background: var(--accent-hover);
-}
-
-/* Floating Cinema Controls */
-.controls-scrim {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--player-scrim);
-  padding: 24px 20px 14px;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  pointer-events: none;
-}
-
-.controls-scrim.controls-visible {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
+.player-card { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-player); }
+.player-card:fullscreen { width: 100vw; height: 100vh; }
+.viewport { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: var(--bg-player); cursor: pointer; }
+.video-core { width: 100%; height: 100%; object-fit: contain; }
+.empty-hero { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-8); background: var(--bg-base); }
+.empty-content { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.upload-icon { color: var(--text-secondary); }
+.hero-subtitle { margin: 0; color: var(--text-secondary); font-size: var(--font-body); }
+.browse-btn { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--control-height); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--accent-primary); color: var(--accent-contrast); font-size: var(--font-body); font-weight: 500; cursor: pointer; }
+.browse-btn:hover { opacity: .88; }
+.controls-scrim { position: absolute; right: 0; bottom: 0; left: 0; z-index: 10; padding: var(--space-6) var(--space-4) var(--space-3); background: var(--player-scrim); opacity: 0; transition: opacity var(--transition-fast); pointer-events: none; }
+.controls-scrim.controls-visible, .controls-scrim:focus-within { opacity: 1; pointer-events: auto; }
 </style>

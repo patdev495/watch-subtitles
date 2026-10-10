@@ -88,7 +88,7 @@ describe('App', () => {
     const wrapper = mount(App, { global: { stubs: { VideoPlayer: { template: '<div data-test="player" />' } } } });
     await wrapper.get('button[aria-label="Phụ đề"]').trigger('click');
     expect(wrapper.find('[role="dialog"][aria-label="Tạo phụ đề"]').exists()).toBe(true);
-    expect(wrapper.find('[aria-label="Playback Queue"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Thư viện video"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="player"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -105,7 +105,7 @@ describe('App', () => {
     window.pywebview = { api };
     const wrapper = mount(App, { global: { stubs: { VideoPlayer: { template: '<div />' } } } });
     await flushPromises();
-    await wrapper.get('.queue-imports button').trigger('click');
+    await wrapper.get('button[aria-label="Thêm video"]').trigger('click');
     await flushPromises();
     expect(wrapper.findAll('.playback-queue li')).toHaveLength(1);
     expect(wrapper.text()).toContain('Video đã trong hàng đợi rồi.');
@@ -140,7 +140,8 @@ describe('App', () => {
     const wrapper = mount(App, { global: { stubs: { VideoPlayer: { props: ['initialTime'], template: '<div data-test="player" />' } } } });
     await flushPromises();
     expect(wrapper.get('[data-test="queue-row-active"]').text()).toContain('a.mp4');
-    expect((wrapper.get('.playback-queue .source select').element as HTMLSelectElement).value).toBe('zh-CN');
+    await wrapper.get('button[aria-label="Phụ đề"]').trigger('click');
+    expect((wrapper.get('[data-test="source-language"]').element as HTMLSelectElement).value).toBe('zh-CN');
     expect((wrapper.get('.auto-advance input').element as HTMLInputElement).checked).toBe(false);
     expect(wrapper.findComponent(VideoPlayer).props('initialTime')).toBe(31);
   });
@@ -197,9 +198,9 @@ describe('App', () => {
     const wrapper = mount(App, { global: { stubs: { VideoPlayer: { template: '<div data-test="player"><slot :is-fullscreen="false" :controls-visible="true" /></div>' } } } });
     await flushPromises();
 
-    expect(wrapper.find('[aria-label="Playback Queue"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Thư viện video"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="player"]').exists()).toBe(true);
-    await wrapper.get('.queue-imports button').trigger('click');
+    await wrapper.get('button[aria-label="Thêm video"]').trigger('click');
     await flushPromises();
     expect(wrapper.findAll('.playback-queue li')).toHaveLength(2);
     await wrapper.get('[data-test="queue-select-a"]').trigger('click');
@@ -309,12 +310,13 @@ describe('App', () => {
 
     await wrapper.get('button.open-button').trigger('click');
     await flushPromises();
-    await wrapper.get('.playback-queue .source select').setValue('auto');
+    await wrapper.get('button[aria-label="Phụ đề"]').trigger('click');
+    await wrapper.get('[data-test="source-language"]').setValue('auto');
     await wrapper.get('[data-test="queue-select-q"]').trigger('click');
     await flushPromises();
 
     expect(api.get_cached_subtitles).toHaveBeenCalledWith('C:/videos/queued.mp4', 'auto', 'vi');
-    expect((wrapper.get('.playback-queue .source select').element as HTMLSelectElement).value).toBe('auto');
+    expect((wrapper.get('[data-test="source-language"]').element as HTMLSelectElement).value).toBe('auto');
     expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual(autoCues);
   });
 
@@ -339,7 +341,8 @@ describe('App', () => {
     await wrapper.get('button.open-button').trigger('click');
     await flushPromises();
     expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual([]);
-    await wrapper.get('.playback-queue .source select').setValue('auto');
+    await wrapper.get('button[aria-label="Phụ đề"]').trigger('click');
+    await wrapper.get('[data-test="source-language"]').setValue('auto');
     await flushPromises();
 
     expect(api.get_cached_subtitles).toHaveBeenCalledWith('C:/videos/queued.mp4', 'auto', 'vi');

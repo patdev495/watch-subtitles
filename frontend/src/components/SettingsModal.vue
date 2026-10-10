@@ -178,7 +178,7 @@ function close() {
           <div class="modal-body">
             <!-- Save error message banner -->
             <div v-if="saveError" class="save-error-banner">
-              <XCircle :size="15" />
+              <XCircle :size="16" />
               <span>{{ saveError }}</span>
             </div>
 
@@ -207,7 +207,7 @@ function close() {
                   :disabled="!form.deepgram_api_key || isTestingStt"
                   @click="testStt"
                 >
-                  <TestTube2 :size="13" />
+                  <TestTube2 :size="16" />
                   {{ isTestingStt ? 'Kiểm tra...' : 'Test' }}
                 </button>
               </div>
@@ -225,14 +225,14 @@ function close() {
                   :disabled="!form.assemblyai_api_key || isTestingStt"
                   @click="testStt"
                 >
-                  <TestTube2 :size="13" />
+                  <TestTube2 :size="16" />
                   {{ isTestingStt ? 'Kiểm tra...' : 'Test' }}
                 </button>
               </div>
               <div v-if="sttStatus" class="status-row">
                 <component
                   :is="sttStatus.ok ? CheckCircle2 : XCircle"
-                  :size="13"
+                  :size="16"
                   :class="sttStatus.ok ? 'status-ok' : 'status-err'"
                 />
                 <span :class="sttStatus.ok ? 'status-ok' : 'status-err'">
@@ -266,18 +266,18 @@ function close() {
                   :disabled="!form.deepl_api_key || isTestingDeepl"
                   @click="testDeepl"
                 >
-                  <TestTube2 :size="13" />
+                  <TestTube2 :size="16" />
                   {{ isTestingDeepl ? 'Kiểm tra...' : 'Test' }}
                 </button>
               </div>
               <div v-else class="provider-note">
                 <span>Google Translate không cần API key.</span>
-                <button class="btn-test" :disabled="isTestingDeepl" @click="testDeepl"><TestTube2 :size="13" />{{ isTestingDeepl ? 'Kiểm tra...' : 'Test kết nối' }}</button>
+                <button class="btn-test" :disabled="isTestingDeepl" @click="testDeepl"><TestTube2 :size="16" />{{ isTestingDeepl ? 'Kiểm tra...' : 'Test kết nối' }}</button>
               </div>
               <div v-if="deeplStatus" class="status-row">
                 <component
                   :is="deeplStatus.ok ? CheckCircle2 : XCircle"
-                  :size="13"
+                  :size="16"
                   :class="deeplStatus.ok ? 'status-ok' : 'status-err'"
                 />
                 <span :class="deeplStatus.ok ? 'status-ok' : 'status-err'">
@@ -289,7 +289,7 @@ function close() {
             <!-- Target Language -->
             <section class="settings-section">
               <div class="section-label">
-                <Languages :size="14" class="section-icon" />
+                <Languages :size="16" class="section-icon" />
                 <span class="section-title">Ngôn ngữ dịch mặc định</span>
               </div>
               <select
@@ -322,97 +322,36 @@ function close() {
 </template>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed; inset: 0; background: var(--bg-backdrop);
-  backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9000;
-}
-.modal-card {
-  width: 480px; max-width: calc(100vw - 32px); background: var(--bg-card);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-card);
-  box-shadow: var(--shadow-panel);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 24px 16px; border-bottom: 1px solid var(--border-subtle);
-}
-.modal-title-row { display: flex; align-items: center; gap: 10px; }
-.modal-title-icon { color: var(--accent-primary); }
-.modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
-.icon-close {
-  width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border-subtle);
-  background: transparent; color: var(--text-muted); cursor: pointer; display: flex;
-  align-items: center; justify-content: center; transition: background 0.1s, color 0.1s;
-}
+.modal-backdrop { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--bg-backdrop); }
+.modal-card { display: flex; flex-direction: column; width: var(--settings-width); max-width: 100%; max-height: 92vh; overflow: auto; border-radius: var(--radius-card); background: var(--bg-surface); box-shadow: var(--shadow-panel); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border-subtle); }
+.modal-title-row { display: flex; align-items: center; gap: var(--space-2); }
+.modal-title-icon, .section-icon { color: var(--text-secondary); }
+.modal-title { margin: 0; color: var(--text-primary); font-size: var(--font-title); font-weight: 600; }
+.icon-close { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .icon-close:hover { background: var(--bg-hover); color: var(--text-primary); }
-.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
-.save-error-banner {
-  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-  background: var(--bg-field); border: 1px solid var(--danger);
-  border-radius: 8px; color: var(--danger); font-size: 12px; font-weight: 500;
-}
-.settings-section { display: flex; flex-direction: column; gap: 8px; }
-.section-label { display: flex; align-items: center; gap: 8px; }
-.section-icon { color: var(--accent-primary); }
-.section-title {
-  font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em;
-}
-.section-badge {
-  font-size: 10px; padding: 2px 7px; border-radius: 10px;
-  background: var(--accent-soft); border: 1px solid var(--border-strong);
-  color: var(--accent-hover); font-weight: 600;
-}
-.field-row { display: flex; gap: 8px; }
-.provider-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-secondary); font-size: 12px; }
-.field-input {
-  flex: 1; padding: 9px 12px; background: var(--bg-field);
-  min-height: var(--control-height); min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  color: var(--text-primary); font-size: 12px; font-family: var(--font-mono);
-  outline: none; transition: border-color 0.15s;
-}
+.modal-body { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-5) var(--space-6); }
+.save-error-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-meta); }
+.settings-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.section-label { display: flex; align-items: center; gap: var(--space-2); }
+.section-title { color: var(--text-secondary); font-size: var(--font-meta); font-weight: 600; }
+.section-badge { padding: 0 var(--space-1); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); font-size: var(--font-meta); }
+.field-row, .provider-note { display: flex; gap: var(--space-2); }
+.provider-note { align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: var(--font-meta); }
+.field-input, .field-select { min-width: 0; min-height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-body); }
+.field-input { flex: 1; }
 .field-input::placeholder { color: var(--text-muted); }
-.field-input:focus { border-color: var(--border-focus); }
-.field-select {
-  width: 100%; padding: 9px 12px; background: var(--bg-field);
-  min-height: var(--control-height); border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer; transition: border-color 0.15s;
-}
-.field-select:focus { border-color: var(--border-focus); }
-.field-select option { background: var(--bg-control); }
-.btn-test {
-  display: flex; align-items: center; gap: 5px; padding: 0 14px; border-radius: 8px;
-  border: 1px solid var(--border-subtle); background: var(--bg-field);
-  color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-}
-.btn-test:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-hover); }
-.btn-test:disabled { opacity: 0.4; cursor: not-allowed; }
-.status-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.status-ok { color: var(--success); }
-.status-err { color: var(--danger); }
-.modal-footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  padding: 16px 24px 20px; border-top: 1px solid var(--border-subtle);
-}
-.btn-cancel {
-  padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border-subtle);
-  background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: color 0.15s, background 0.15s;
-}
-.btn-cancel:hover { color: var(--text-primary); background: var(--bg-hover); }
-.btn-save {
-  padding: 8px 22px; border-radius: 8px; border: none; background: var(--accent-primary);
-  color: var(--accent-contrast); font-size: 13px; font-weight: 700; cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-}
-.btn-save:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
-.modal-fade-enter-active .modal-card, .modal-fade-leave-active .modal-card {
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
+.field-select { width: 100%; }
+.btn-test { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); font-size: var(--font-meta); cursor: pointer; white-space: nowrap; }
+.btn-test:hover:not(:disabled) { background: var(--bg-selected); color: var(--text-primary); }
+.status-row { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-meta); }
+.status-ok, .status-err { color: var(--text-secondary); }
+.modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border-subtle); }
+.btn-cancel, .btn-save { min-height: var(--control-height); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); font-size: var(--font-body); font-weight: 500; cursor: pointer; }
+.btn-cancel { background: transparent; color: var(--text-secondary); }
+.btn-cancel:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn-save { background: var(--accent-primary); color: var(--accent-contrast); }
+.btn-save:hover:not(:disabled) { opacity: .88; }
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity var(--transition-fast); }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
-.modal-fade-enter-from .modal-card, .modal-fade-leave-to .modal-card {
-  transform: translateY(-12px); opacity: 0;
-}
 </style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import { Download, Eye, EyeOff, Info, SlidersHorizontal, X } from 'lucide-vue-next';
+import { Download, Eye, EyeOff, SlidersHorizontal, X } from 'lucide-vue-next';
 import { pinyin } from 'pinyin-pro';
 import type { Cue, SubtitleDisplayPreferences, SubtitleLine } from '../types';
 import { useTranscript } from '../composables/useTranscript';
@@ -31,6 +31,10 @@ const translatedPinyin = computed(() => activeCue.value && chineseLanguage(props
   ? pinyin(activeCue.value.translatedText, { toneType: 'symbol' }) : '');
 const primaryText = computed(() => activeCue.value
   ? primaryLine.value === 'original' ? activeCue.value.originalText : activeCue.value.translatedText
+  : '');
+const secondaryLine = computed<'original' | 'translated'>(() => primaryLine.value === 'original' ? 'translated' : 'original');
+const secondaryText = computed(() => activeCue.value
+  ? secondaryLine.value === 'original' ? activeCue.value.originalText : activeCue.value.translatedText
   : '');
 
 const lineSettings = reactive<Record<SubtitleLine, { visible: boolean; fontSize: number }>>({
@@ -123,7 +127,7 @@ async function exportSubtitles(): Promise<void> {
 </script>
 
 <template>
-  <section v-if="activeCue" :class="['subtitle-overlay', { fullscreen: isFullscreen, 'controls-visible': controlsVisible }]" aria-label="Phụ đề hiện tại">
+  <section v-if="activeCue" :class="['subtitle-overlay', { fullscreen: isFullscreen, 'controls-visible': controlsVisible, 'panel-open': detailOpen || settingsOpen }]" aria-label="Phụ đề hiện tại">
     <div class="subtitle-toolbar" aria-label="Điều khiển phụ đề">
       <button
         class="toolbar-button"
@@ -146,15 +150,15 @@ async function exportSubtitles(): Promise<void> {
       </button>
     </div>
 
-    <div v-if="subtitlesVisible && lineSettings[primaryLine].visible" class="caption-card" :style="lineStyle(primaryLine)">
-      <span class="caption-text">{{ primaryText }}</span>
-      <button class="caption-detail-button" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true"><Info :size="15" aria-hidden="true" /></button>
+    <div v-if="subtitlesVisible && lineSettings[primaryLine].visible" class="caption-card" :style="lineStyle(primaryLine)" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
+      <span v-if="lineSettings[secondaryLine].visible" :class="secondaryLine === 'original' ? 'caption-original' : 'caption-translation'">{{ secondaryText }}</span>
+      <span class="caption-text" :class="primaryLine === 'original' ? 'caption-original' : 'caption-translation'">{{ primaryText }}</span>
     </div>
 
     <aside v-if="detailOpen || settingsOpen" class="cue-drawer" :aria-label="detailOpen ? 'Chi tiết phụ đề hiện tại' : 'Chỉnh hiển thị phụ đề'">
       <div class="drawer-header">
         <strong>{{ detailOpen ? 'Chi tiết câu hiện tại' : 'Chỉnh hiển thị' }}</strong>
-        <button class="icon-button" aria-label="Đóng bảng phụ đề" @click="closePanel"><X :size="17" aria-hidden="true" /></button>
+        <button class="icon-button" aria-label="Đóng bảng phụ đề" @click="closePanel"><X :size="16" aria-hidden="true" /></button>
       </div>
       <div v-if="detailOpen || settingsOpen" class="primary-switch" aria-label="Dòng sub trên video">
         <button :class="{ selected: primaryLine === 'original' }" :aria-pressed="primaryLine === 'original'" aria-label="Hiển thị dòng gốc trên video" @click="choosePrimary('original')">Gốc</button>
@@ -168,7 +172,7 @@ async function exportSubtitles(): Promise<void> {
         <strong>Hiển thị &amp; cỡ chữ</strong>
         <div v-for="line in detailLines" :key="line.key" class="setting-row">
           <button class="icon-button" :aria-label="`${lineSettings[line.key].visible ? 'Ẩn' : 'Hiện'} dòng ${line.label}`" @click="toggleLine(line.key)">
-            <Eye v-if="lineSettings[line.key].visible" :size="15" aria-hidden="true" /><EyeOff v-else :size="15" aria-hidden="true" />
+            <Eye v-if="lineSettings[line.key].visible" :size="16" aria-hidden="true" /><EyeOff v-else :size="16" aria-hidden="true" />
           </button>
           <label :for="`font-${line.key}`">{{ line.label }}</label>
           <input :id="`font-${line.key}`" :aria-label="`Cỡ chữ dòng ${line.label}`" type="range" :min="line.minimum" max="36" :value="lineSettings[line.key].fontSize" @input="updateFontSize(line.key, $event)">
@@ -178,7 +182,7 @@ async function exportSubtitles(): Promise<void> {
       <div v-if="detailOpen" class="export-row">
         <select v-model="selectedFmt" aria-label="Định dạng xuất subtitle"><option v-for="format in exportFormats" :key="format" :value="format">.{{ format.toUpperCase() }}</option></select>
         <select v-model="selectedLayout" aria-label="Bố cục xuất subtitle"><option v-for="layout in exportLayouts" :key="layout.value" :value="layout.value">{{ layout.label }}</option></select>
-        <button :disabled="exporting" @click="exportSubtitles"><Download :size="15" aria-hidden="true" />{{ exporting ? 'Đang xuất' : 'Xuất' }}</button>
+        <button :disabled="exporting" @click="exportSubtitles"><Download :size="16" aria-hidden="true" />{{ exporting ? 'Đang xuất' : 'Xuất' }}</button>
       </div>
       <p v-if="detailOpen && exportMessage" class="export-message">{{ exportMessage }}</p>
     </aside>
@@ -187,21 +191,38 @@ async function exportSubtitles(): Promise<void> {
 
 <style scoped>
 .subtitle-overlay { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
-.subtitle-toolbar { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; pointer-events: auto; }
-.subtitle-overlay.fullscreen .subtitle-toolbar { opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
-.subtitle-overlay.fullscreen.controls-visible .subtitle-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.toolbar-button { display: inline-flex; align-items: center; gap: 5px; min-height: var(--control-height); padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); color: var(--text-primary); background: var(--bg-overlay); box-shadow: var(--shadow-caption); cursor: pointer; font-size: 12px; font-weight: 600; }
-.toolbar-button:hover, .icon-button:hover { border-color: var(--accent-hover); background: var(--bg-control); }
-.toolbar-button:focus-visible, .icon-button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
-.caption-card { position: absolute; left: 50%; bottom: 18px; display: inline-flex; align-items: center; gap: 8px; width: max-content; max-width: min(90%, 760px); padding: 7px 12px; transform: translateX(-50%); border: 0; border-radius: var(--radius-control); color: var(--text-primary); background: var(--bg-overlay); box-shadow: var(--shadow-caption); line-height: 1.5; font-weight: 600; text-align: center; pointer-events: auto; text-wrap: balance; }
-.subtitle-overlay.controls-visible .caption-card { bottom: 80px; }
-.caption-text { overflow-wrap: anywhere; cursor: text; user-select: text; -webkit-user-select: text; }.caption-detail-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; color: var(--accent-hover); background: transparent; cursor: pointer; }.caption-detail-button:hover, .caption-detail-button:focus-visible { background: var(--border-subtle); outline: 2px solid var(--accent-hover); outline-offset: 2px; }.caption-detail-button svg { display: block; }
-.cue-drawer { position: absolute; top: 58px; right: 14px; width: min(360px, calc(100% - 28px)); max-height: calc(100% - 72px); overflow: auto; padding: 14px; border: 1px solid var(--border-strong); border-radius: 12px; color: var(--text-primary); background: var(--bg-overlay-solid); box-shadow: var(--shadow-panel); pointer-events: auto; }
-.drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }.drawer-header strong { font-size: 14px; }.icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; padding: 0; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: var(--bg-control); cursor: pointer; }
-.primary-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }.primary-switch button, .export-row button { min-height: 30px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-control); cursor: pointer; }.primary-switch button:hover, .export-row button:hover { background: var(--bg-raised); }.primary-switch button.selected { color: var(--accent-contrast); background: var(--accent-primary); border-color: var(--accent-primary); }
-.detail-line { padding: 9px 0; border-top: 1px solid var(--border-subtle); }.detail-line > span { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }.detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }.selectable-detail-text { cursor: text; user-select: text !important; -webkit-user-select: text !important; pointer-events: auto; }.detail-line--original p { color: var(--text-secondary); }.detail-line--translated p { color: var(--text-primary); font-weight: 600; }.detail-line--originalPinyin p, .detail-line--translatedPinyin p { color: var(--text-muted); font-style: italic; }
-.display-settings { margin-top: 10px; border-top: 1px solid var(--border-subtle); padding-top: 10px; }.display-settings > strong { color: var(--accent-hover); font-size: 12px; font-weight: 700; }.setting-row { display: grid; grid-template-columns: 30px 76px 1fr 36px; align-items: center; gap: 6px; margin-top: 8px; color: var(--text-secondary); font-size: 12px; }.setting-row input { width: 100%; accent-color: var(--accent-hover); }.setting-row output { font-variant-numeric: tabular-nums; }
-.export-row { display: grid; grid-template-columns: 68px 1fr 64px; gap: 6px; margin-top: 14px; }.export-row select { min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-control); font-size: 12px; }.export-row button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: var(--accent-primary); color: var(--accent-contrast); }.export-row button:hover { background: var(--accent-hover); }.export-message { margin: 8px 0 0; color: var(--success); font-size: 12px; }
-@media (max-width: 860px) { .subtitle-overlay.controls-visible .caption-card { bottom: 108px; } }
-@media (max-width: 720px) { .subtitle-toolbar { top: 8px; right: 8px; }.toolbar-button { min-height: 34px; padding: 0 8px; }.caption-card { bottom: 14px; max-width: calc(100% - 24px); }.cue-drawer { top: 50px; right: 8px; width: min(340px, calc(100% - 16px)); max-height: calc(100% - 58px); } }
+.subtitle-toolbar { position: absolute; top: var(--space-4); right: var(--space-4); display: flex; gap: var(--space-1); opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
+.subtitle-overlay.controls-visible .subtitle-toolbar, .subtitle-overlay.panel-open .subtitle-toolbar, .subtitle-overlay:focus-within .subtitle-toolbar { opacity: 1; pointer-events: auto; }
+.toolbar-button { display: inline-flex; align-items: center; gap: var(--space-1); height: var(--control-height); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--bg-overlay); color: var(--text-primary); cursor: pointer; font-size: var(--font-meta); font-weight: 500; }
+.toolbar-button:hover, .icon-button:hover { background: var(--bg-hover); }
+.caption-card { position: absolute; left: 50%; bottom: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-1); width: max-content; max-width: min(90%, var(--caption-max-width)); padding: var(--space-2) var(--space-3); transform: translateX(-50%); border-radius: var(--radius-control); background: var(--bg-caption); color: var(--text-primary); font-weight: 500; line-height: 1.4; text-align: center; pointer-events: auto; cursor: pointer; text-wrap: balance; }
+.subtitle-overlay.controls-visible .caption-card { bottom: var(--caption-offset); }
+.caption-original { color: var(--text-secondary); font-size: .8em; font-weight: 400; }
+.caption-translation { color: var(--text-primary); font-size: 1em; font-weight: 500; }
+.caption-text { overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.cue-drawer { position: absolute; top: var(--drawer-top); right: var(--space-4); width: min(var(--popover-width), calc(100% - var(--drawer-inset))); max-height: calc(100% - var(--drawer-height-inset)); overflow: auto; padding: var(--space-4); border-radius: var(--radius-card); background: var(--bg-overlay-solid); color: var(--text-primary); box-shadow: var(--shadow-panel); pointer-events: auto; }
+.drawer-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.drawer-header strong { font-size: var(--font-file); font-weight: 600; }
+.icon-button { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.primary-switch { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-bottom: var(--space-3); }
+.primary-switch button, .export-row button { height: var(--control-height); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); cursor: pointer; }
+.primary-switch button:hover, .export-row button:hover { color: var(--text-primary); }
+.primary-switch button.selected { background: var(--bg-selected); color: var(--text-primary); }
+.detail-line { padding: var(--space-2) 0; }
+.detail-line > span { display: block; margin-bottom: var(--space-1); color: var(--text-muted); font-size: var(--font-meta); font-weight: 500; }
+.detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.selectable-detail-text { cursor: text; user-select: text !important; -webkit-user-select: text !important; pointer-events: auto; }
+.detail-line--original p { color: var(--text-secondary); }
+.detail-line--translated p { color: var(--text-primary); font-weight: 500; }
+.detail-line--originalPinyin p, .detail-line--translatedPinyin p { color: var(--text-muted); }
+.display-settings { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+.display-settings > strong { color: var(--text-primary); font-size: var(--font-meta); font-weight: 600; }
+.setting-row { display: grid; grid-template-columns: var(--control-height) var(--subtitle-label-width) 1fr var(--subtitle-output-width); align-items: center; gap: var(--space-1); margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--font-meta); }
+.setting-row input { width: 100%; }
+.setting-row output { font-variant-numeric: tabular-nums; }
+.export-row { display: grid; grid-template-columns: var(--export-format-width) 1fr var(--export-action-width); gap: var(--space-1); margin-top: var(--space-3); }
+.export-row select { min-width: 0; border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-meta); }
+.export-row button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
+.export-message { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--font-meta); }
+@media (max-width: 900px) { .subtitle-toolbar { top: var(--space-2); right: var(--space-2); } .cue-drawer { top: var(--drawer-compact-top); right: var(--space-2); max-height: calc(100% - var(--drawer-compact-height-inset)); } }
 </style>

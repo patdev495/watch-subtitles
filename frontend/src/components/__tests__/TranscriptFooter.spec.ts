@@ -39,7 +39,7 @@ describe('TranscriptFooter', () => {
     expect(wrapper.text()).not.toContain('Đầu tiên');
   });
 
-  it('keeps the on-video subtitle text selectable while providing a separate detail control', () => {
+  it('keeps the on-video subtitle text selectable without an info icon', () => {
     const wrapper = mount(TranscriptFooter, {
       props: {
         cues: [{ id: '1', start: 0, end: 2, originalText: 'Select this', translatedText: 'Chọn câu này' }],
@@ -51,7 +51,8 @@ describe('TranscriptFooter', () => {
 
     expect(wrapper.get('.caption-card').element.tagName).toBe('DIV');
     expect(wrapper.get('.caption-text').text()).toBe('Chọn câu này');
-    expect(wrapper.find('button[aria-label="Mở chi tiết phụ đề"]').exists()).toBe(true);
+    expect(wrapper.get('.caption-original').text()).toBe('Select this');
+    expect(wrapper.find('button[aria-label="Mở chi tiết phụ đề"]').exists()).toBe(false);
   });
 
   it('marks original and translated text in the detail panel as selectable', async () => {
@@ -64,7 +65,7 @@ describe('TranscriptFooter', () => {
       },
     });
 
-    await wrapper.get('button[aria-label="Mở chi tiết phụ đề"]').trigger('click');
+    await wrapper.get('.caption-card').trigger('click');
     expect(wrapper.get('.detail-line--original .selectable-detail-text').text()).toBe('Hello, my friend.');
     expect(wrapper.get('.detail-line--translated .selectable-detail-text').text()).toBe('Xin chào, bạn của tớ.');
   });
@@ -79,7 +80,7 @@ describe('TranscriptFooter', () => {
       },
     });
 
-    await wrapper.get('button[aria-label="Mở chi tiết phụ đề"]').trigger('click');
+    await wrapper.get('.caption-card').trigger('click');
     expect(wrapper.text()).toContain('nǐ hǎo');
   });
 
@@ -93,7 +94,7 @@ describe('TranscriptFooter', () => {
       },
     });
 
-    await wrapper.get('button[aria-label="Mở chi tiết phụ đề"]').trigger('click');
+    await wrapper.get('.caption-card').trigger('click');
     await wrapper.get('button[aria-label="Mở chỉnh phụ đề"]').trigger('click');
     await wrapper.get('button[aria-label="Ẩn dòng Gốc"]').trigger('click');
     expect(wrapper.get('.detail-line--original').attributes('style')).toContain('display: none');

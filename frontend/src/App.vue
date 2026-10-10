@@ -408,7 +408,7 @@ onMounted(() => {
     <!-- Drag overlay -->
     <div v-if="isDragging" class="drag-overlay">
       <div class="drag-halo-card">
-        <Sparkles :size="36" class="drag-icon" />
+        <Sparkles :size="18" class="drag-icon" />
         <h3>Thả video vào đây để nạp vào Studio</h3>
       </div>
     </div>
@@ -471,12 +471,13 @@ onMounted(() => {
       :open="subtitlesModalOpen"
       :videos="queuedVideos"
       :jobs="subtitleJobs"
+      :active-path="currentFilePath"
       :default-target-language="settings.default_target_language"
       @close="subtitlesModalOpen = false"
       @generate="createSubtitleJob"
       @generate-all="generateAllQueuedVideos"
       @retry="retrySubtitleJob"
-      @source-change="(video, source) => { video.sourceLanguage = source; }"
+      @source-change="(video, source) => { video.sourceLanguage = source; if (video.path === currentFilePath) handleSourceLanguageChange(source); }"
     />
 
     <!-- Settings Modal -->
@@ -489,6 +490,7 @@ onMounted(() => {
       <button v-for="notice in notifications" :key="notice.id" :class="{ failed: notice.failed }" @click="notifications = notifications.filter(item => item.id !== notice.id)">
         {{ notice.message }}
       </button>
+      <span v-for="video in queuedVideos.filter(item => item.error)" :key="video.path" class="queue-error-toast">{{ video.error }}</span>
     </aside>
   </div>
 </template>
