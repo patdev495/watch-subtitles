@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PlaybackVideo, SubtitleJob } from '../types';
 import { SUPPORTED_SOURCE_LANGUAGES } from '../languages';
+import { X } from 'lucide-vue-next';
 
 defineProps<{
   videos: PlaybackVideo[];
@@ -38,13 +39,13 @@ function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined 
     <ol v-else>
       <li v-for="video in videos" :key="video.path" :data-test="video.path === activePath ? 'queue-row-active' : 'queue-row'" :class="{ active: video.path === activePath }">
         <button class="queue-select" :data-test="`queue-select-${video.filename.charAt(0)}`" @click="emit('select', video)">{{ video.filename }}</button>
-        <button class="queue-remove" :data-test="`queue-remove-${video.filename.charAt(0)}`" :aria-label="`Xóa ${video.filename}`" @click="emit('remove', video)">×</button>
+        <button class="queue-remove" :data-test="`queue-remove-${video.filename.charAt(0)}`" :aria-label="`Xóa ${video.filename}`" @click="emit('remove', video)"><X :size="15" aria-hidden="true" /></button>
         <label class="source">Nguồn
           <select :value="video.sourceLanguage" @change="emit('source-change', video, ($event.target as HTMLSelectElement).value)">
             <option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option>
           </select>
         </label>
-        <span class="availability">{{ video.cachedPairs?.length ? video.cachedPairs.map(([source, target]) => `${source} → ${target}`).join(', ') : 'Chưa có phụ đề' }}</span>
+        <span class="availability" :class="{ 'has-cache': video.cachedPairs?.length }">{{ video.cachedPairs?.length ? video.cachedPairs.map(([source, target]) => `${source} → ${target}`).join(', ') : 'Chưa có phụ đề' }}</span>
         <span v-if="currentJob(jobs, video.path)" class="progress">{{ currentJob(jobs, video.path)?.status === 'processing' ? `${currentJob(jobs, video.path)?.progress}%` : 'Đang chờ' }}</span>
         <span v-if="video.error" class="error">{{ video.error }}</span>
       </li>
@@ -53,21 +54,26 @@ function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined 
 </template>
 
 <style scoped>
-.playback-queue { width: 320px; flex: 0 0 320px; min-height: 0; overflow-y: auto; padding: 18px 12px; border-right: 1px solid rgba(148,163,184,.18); color: #e2e8f0; background: #0b1220; }
-h2 { margin: 0 0 14px; font-size: 16px; }
+.playback-queue { width: 320px; flex: 0 0 320px; min-height: 0; overflow-y: auto; padding: 18px 12px; border-right: 1px solid var(--border-subtle); color: var(--text-primary); background: var(--bg-surface); }
+h2 { margin: 0 0 14px; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
 .queue-imports { display: flex; gap: 6px; }
-button { cursor: pointer; color: inherit; background: #1e293b; border: 1px solid #334155; border-radius: 7px; padding: 7px; }
-button:disabled { opacity: .45; cursor: not-allowed; }.clear-queue { margin-top: 8px; color: #fda4af; border-color: #7f1d1d; }.clear-queue:hover:not(:disabled) { background: #450a0a; }
-.auto-advance { display: flex; align-items: center; gap: 6px; margin: 14px 0; font-size: 13px; }
-.empty { color: #94a3b8; font-size: 13px; }
+button { min-height: var(--control-height); padding: 0 10px; cursor: pointer; color: var(--text-secondary); background: var(--bg-control); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); font-size: 12px; font-weight: 600; }
+button:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-raised); border-color: var(--border-strong); }
+.clear-queue { margin-top: 8px; color: var(--text-muted); background: transparent; }
+.clear-queue:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.auto-advance { display: flex; align-items: center; gap: 6px; margin: 14px 0; font-size: 12px; color: var(--text-secondary); }
+.auto-advance input { margin: 0; }
+.empty { color: var(--text-muted); font-size: 12px; }
 ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-li { display: grid; grid-template-columns: 1fr auto; gap: 5px; padding: 10px; border: 1px solid #334155; border-radius: 10px; background: #111c2f; }
-li.active { border-color: #818cf8; background: #202547; }
-.queue-select { text-align: left; overflow-wrap: anywhere; font-weight: 700; background: none; border: 0; }
-.queue-remove { line-height: 1; color: #fda4af; }
-.source { grid-column: 1 / -1; font-size: 11px; color: #94a3b8; }
-.source select { margin-left: 5px; max-width: 160px; color: #e2e8f0; background: #1e293b; border: 1px solid #475569; }
+li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-card); }
+li.active { border-color: var(--accent-primary); background: var(--accent-soft); }
+.queue-select { min-width: 0; min-height: 26px; padding: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-primary); background: none; border: 0; }
+.queue-select:hover:not(:disabled) { background: none; border-color: transparent; color: var(--accent-hover); }
+.queue-remove { display: grid; place-items: center; width: 26px; height: 26px; min-height: 26px; padding: 0; line-height: 1; color: var(--text-muted); background: transparent; border: 0; }
+.queue-remove:hover:not(:disabled) { color: var(--danger); background: var(--bg-raised); border-color: transparent; }
+.source { grid-column: 1 / -1; font-size: 11px; color: var(--text-muted); }
+.source select { margin-left: 5px; max-width: 160px; min-height: 27px; padding: 2px 6px; color: var(--text-secondary); background: var(--bg-control); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
 .availability,.progress,.error { grid-column: 1 / -1; font-size: 11px; }
-.availability { color: #a5b4fc; }.progress { color: #67e8f9; }.error { color: #fda4af; }
+.availability { color: var(--text-muted); }.availability.has-cache { color: var(--success); }.progress { color: var(--warning); }.error { color: var(--danger); }
 @media (max-width: 700px) { .playback-queue { width: 180px; flex-basis: 180px; } .queue-imports { flex-direction: column; } }
 </style>

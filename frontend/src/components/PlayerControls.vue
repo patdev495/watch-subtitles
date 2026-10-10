@@ -142,15 +142,15 @@ function onRateChange(event: Event) {
   right: 0;
   height: 4px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--border-strong);
   overflow: hidden;
 }
 
 .timeline-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #38bdf8);
+  background: var(--accent-primary);
   border-radius: 9999px;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+  box-shadow: none;
 }
 
 .timeline-slider {
@@ -181,29 +181,28 @@ function onRateChange(event: Event) {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #38bdf8 100%);
+  background: var(--accent-primary);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px rgba(99, 102, 241, 0.5);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: background-color var(--transition-fast);
 }
 
 .play-toggle-btn:hover {
-  transform: scale(1.08);
-  filter: brightness(1.1);
+  background: var(--accent-hover);
 }
 
 .icon-white {
-  color: #ffffff;
+  color: var(--accent-contrast);
 }
 
 .icon-btn {
   background: transparent;
   border: none;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -211,12 +210,12 @@ function onRateChange(event: Event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #38bdf8;
+  background: var(--bg-raised);
+  color: var(--text-primary);
 }
 
 .time-counter {
@@ -224,29 +223,29 @@ function onRateChange(event: Event) {
   font-size: 13px;
   display: flex;
   gap: 6px;
-  color: #e2e8f0;
-  background: rgba(15, 23, 42, 0.6);
+  color: var(--text-primary);
+  background: var(--bg-overlay);
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
 }
 
 .time-counter .divider {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .time-counter .total-time {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .volume-box {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-overlay);
   padding: 2px 8px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
 }
 
 .vol-slider {
@@ -255,14 +254,19 @@ function onRateChange(event: Event) {
 }
 
 .speed-box .speed-select {
-  background: rgba(15, 23, 42, 0.6);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   outline: none;
+}
+@media (max-width: 860px) {
+  .actions-strip { flex-wrap: wrap; gap: 4px; }
+  .left-strip, .right-strip { gap: 6px; }
+  .right-strip { margin-left: auto; }
 }
 </style>

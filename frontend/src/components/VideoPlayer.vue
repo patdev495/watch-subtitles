@@ -234,11 +234,11 @@ defineExpose({ seekTo });
   width: 100%;
   height: 100%;
   min-height: 380px;
-  background: #020617;
-  border-radius: 16px;
+  background: var(--bg-player);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-panel);
+  border: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
 }
@@ -249,7 +249,7 @@ defineExpose({ seekTo });
   position: relative;
   width: 100%;
   height: 100%;
-  background: #000000;
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -269,7 +269,7 @@ defineExpose({ seekTo });
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #0f172a 0%, #020617 80%);
+  background: var(--bg-player);
   padding: 40px;
 }
 
@@ -284,29 +284,29 @@ defineExpose({ seekTo });
 .icon-halo {
   width: 80px;
   height: 80px;
-  border-radius: 24px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+  box-shadow: none;
 }
 
-.upload-icon { color: #38bdf8; }
+.upload-icon { color: var(--accent-hover); }
 
 .hero-title {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #f8fafc;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .hero-subtitle {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 24px;
 }
@@ -316,20 +316,19 @@ defineExpose({ seekTo });
   align-items: center;
   gap: 8px;
   padding: 10px 22px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #6366f1 0%, #38bdf8 100%);
-  color: #ffffff;
+  border-radius: var(--radius-control);
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
   font-weight: 600;
   font-size: 13px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-  transition: all 0.2s ease;
+  box-shadow: none;
+  transition: background-color var(--transition-fast);
 }
 
 .browse-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.6);
+  background: var(--accent-hover);
 }
 
 /* Floating Cinema Controls */
@@ -338,7 +337,7 @@ defineExpose({ seekTo });
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(to top, rgba(2, 6, 23, 0.95) 0%, rgba(2, 6, 23, 0.6) 65%, transparent 100%);
+  background: var(--player-scrim);
   padding: 24px 20px 14px;
   opacity: 0;
   transform: translateY(8px);
