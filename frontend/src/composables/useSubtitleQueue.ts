@@ -67,5 +67,5 @@ export function useSubtitleQueue(currentPath: Ref<string>, onJobUpdate: (job: Su
     queuedVideos.value = queuedVideos.value.filter((item) => item.path !== video.path);
   }
 
-  return { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo };
+  return { activeScreen, queuedVideos, subtitleJobs, activeMainJob, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo };
 }

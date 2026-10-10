@@ -5,11 +5,10 @@ import HeaderBar from './components/HeaderBar.vue';
 import VideoPlayer from './components/VideoPlayer.vue';
 import TranscriptFooter from './components/TranscriptFooter.vue';
 import SettingsModal from './components/SettingsModal.vue';
-import PipelineProgressBar from './components/PipelineProgressBar.vue';
 import QueueScreen from './components/QueueScreen.vue';
 import { useSubtitleQueue } from './composables/useSubtitleQueue';
 import { getMockCues } from './fixtures/mockCues';
-import type { VideoDialogResponse, AppSettings, Cue, PipelineStatus, SubtitleJob } from './types';
+import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob } from './types';
 // ── Video state ──────────────────────────────────────────────────────────────
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
@@ -24,28 +23,18 @@ const sourceLanguage = ref<string>('en');
 const targetLanguage = ref<string>('vi');
 const hasSubtitles = ref<boolean>(false);
 const isGenerating = ref<boolean>(false);
-const showPipelineProgress = ref<boolean>(false);
-const pipelineStatus = ref<PipelineStatus>({
-  status: 'idle',
-  progress: 0,
-  step: '',
-  cues: [],
-  error: null,
-});
 // ── Cue / Transcript state ───────────────────────────────────────────────────
 const cues = ref<Cue[]>([]);
 function loadMockCues(): void {
   cues.value = getMockCues();
 }
 
-const { activeScreen, queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo } = useSubtitleQueue(
+const { activeScreen, queuedVideos, subtitleJobs, activeMainJob, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, addQueuedVideo, generateAllQueuedVideos, retrySubtitleJob, removeSubtitleJob, removeQueuedVideo } = useSubtitleQueue(
   currentFilePath,
   (job, previous) => {
     if (job.video_path === currentFilePath.value
       && job.source_language === sourceLanguage.value
       && job.target_language === targetLanguage.value) {
-      showPipelineProgress.value = true;
-      pipelineStatus.value = { status: job.status === 'completed' ? 'completed' : job.status === 'failed' || job.status === 'cancelled' ? 'error' : 'running', progress: job.progress, step: job.step, cues: job.cues, error: job.error };
       if (job.status === 'completed') {
         cues.value = job.cues;
         hasSubtitles.value = job.cues.length > 0;
@@ -148,32 +137,9 @@ async function handleGenerateSubtitles(source: string, target: string, force: bo
   if (!currentFilePath.value && !window.pywebview?.api) {
     // Dev browser simulation
     isGenerating.value = true;
-    showPipelineProgress.value = true;
-    pipelineStatus.value = {
-      status: 'running',
-      progress: 20,
-      step: 'Đang trích xuất audio (Mô phỏng)...',
-      cues: [],
-      error: null,
-    };
     setTimeout(() => {
-      pipelineStatus.value = {
-        status: 'running',
-        progress: 60,
-        step: 'Đang nhận diện Deepgram (Mô phỏng)...',
-        cues: [],
-        error: null,
-      };
-    }, 600);
-    setTimeout(() => {
-      pipelineStatus.value = {
-        status: 'completed',
-        progress: 100,
-        step: 'Hoàn thành!',
-        cues: getMockCues(),
-        error: null,
-      };
       cues.value = getMockCues();
+      hasSubtitles.value = true;
       isGenerating.value = false;
     }, 1200);
     return;
@@ -313,6 +279,7 @@ onMounted(() => {
       :current-filename="currentFilename"
       :backend-connected="backendConnected"
       :is-generating="isGenerating"
+      :generation-progress="activeMainJob?.progress ?? 0"
       :has-subtitles="hasSubtitles"
       @open-video="handleOpenVideo"
       @ping-backend="handlePingBackend"
@@ -360,12 +327,6 @@ onMounted(() => {
         </VideoPlayer>
       </section>
     </main>
-
-    <!-- Pipeline Progress Modal -->
-    <PipelineProgressBar
-      v-model="showPipelineProgress"
-      :status="pipelineStatus"
-    />
 
     <!-- Settings Modal -->
     <SettingsModal

@@ -3,8 +3,8 @@ import { Activity, ArrowRight, FileVideo, FolderOpen, Languages, ListVideo, Load
 import { SUPPORTED_LANGUAGES, SUPPORTED_SOURCE_LANGUAGES } from '../languages';
 
 const props = withDefaults(defineProps<{
-  currentFilename?: string; backendConnected: boolean; isGenerating?: boolean; hasSubtitles?: boolean; sourceLanguage?: string; targetLanguage?: string;
-}>(), { currentFilename: '', isGenerating: false, hasSubtitles: false, sourceLanguage: 'en', targetLanguage: 'vi' });
+  currentFilename?: string; backendConnected: boolean; isGenerating?: boolean; generationProgress?: number; hasSubtitles?: boolean; sourceLanguage?: string; targetLanguage?: string;
+}>(), { currentFilename: '', isGenerating: false, generationProgress: 0, hasSubtitles: false, sourceLanguage: 'en', targetLanguage: 'vi' });
 const emit = defineEmits<{
   (e: 'open-video'): void; (e: 'ping-backend'): void; (e: 'open-settings'): void;
   (e: 'update:sourceLanguage', lang: string): void; (e: 'update:targetLanguage', lang: string): void;
@@ -42,7 +42,7 @@ function updateLanguage(event: Event, kind: 'source' | 'target'): void {
       <button class="queue-button" title="Mở hàng đợi tạo phụ đề" @click="emit('open-queue')"><ListVideo :size="17" aria-hidden="true" /><span>Hàng đợi</span></button>
       <button class="generate-button" :disabled="!currentFilename || isGenerating" @click="emit('generate-subtitles', sourceLanguage, targetLanguage, hasSubtitles)">
         <Loader2 v-if="isGenerating" :size="17" class="spin" aria-hidden="true" /><Sparkles v-else :size="17" aria-hidden="true" />
-        <span>{{ isGenerating ? 'Đang tạo' : hasSubtitles ? 'Tạo lại' : 'Tạo phụ đề' }}</span>
+        <span>{{ isGenerating ? `Đang tạo · ${Math.round(generationProgress)}%` : hasSubtitles ? 'Tạo lại' : 'Tạo phụ đề' }}</span>
       </button>
       <button class="open-button" :disabled="isGenerating" @click="emit('open-video')"><FolderOpen :size="17" aria-hidden="true" /><span>Mở video</span></button>
     </div>

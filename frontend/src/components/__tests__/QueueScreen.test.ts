@@ -54,6 +54,19 @@ describe('QueueScreen', () => {
     expect(wrapper.emitted('remove-job')).toEqual([['waiting-job']]);
   });
 
+  it('shows the in-row spinner and percentage for the processing Subtitle Job', () => {
+    const wrapper = mount(QueueScreen, {
+      props: {
+        videos: [{ path: '/videos/lesson.mp4', filename: 'lesson.mp4' }],
+        jobs: [{ id: 'processing-job', video_path: '/videos/lesson.mp4', source_language: 'en', target_language: 'vi', status: 'processing', progress: 25, step: 'Đang nhận diện giọng nói (STT)...', cues: [], error: null, cached: false }],
+        sourceLanguage: 'en', targetLanguage: 'vi',
+      },
+    });
+
+    expect(wrapper.get('.state-pill.processing').text()).toContain('25%');
+    expect(wrapper.find('.state-pill.processing .lucide-loader-circle').exists()).toBe(true);
+  });
+
   it('uses each video selected language pair and flags a matching cache as recreation', async () => {
     const wrapper = mount(QueueScreen, {
       props: {
