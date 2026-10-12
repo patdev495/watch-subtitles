@@ -50,6 +50,8 @@ export interface SubtitleDisplayPreferences {
   primary_line: 'original' | 'translated';
   overlay_visible: boolean;
   caption_color?: string;
+  /** Background opacity of the caption pill, 0-1. Default: 0.86 */
+  caption_bg_opacity?: number;
   lines: Record<SubtitleLine, { visible: boolean; font_size: number }>;
 }
 

@@ -26,6 +26,7 @@ const detailOpen = ref(false);
 const settingsOpen = ref(false);
 const subtitlesVisible = ref(props.preferences?.overlay_visible ?? true);
 const captionColor = ref(props.preferences?.caption_color ?? '#ffffff');
+const captionBgOpacity = ref(props.preferences?.caption_bg_opacity ?? 0.86);
 const chineseLanguage = (language: string): boolean => language.toLowerCase().startsWith('zh');
 const originalPinyin = computed(() => activeCue.value && chineseLanguage(props.sourceLanguage)
   ? pinyin(activeCue.value.originalText, { toneType: 'symbol' }) : '');
@@ -54,9 +55,13 @@ const displayMode = computed<DisplayMode>(() => {
 const captionLine = computed<'original' | 'translated'>(() =>
   lineSettings.translated.visible ? 'translated' : 'original');
 const hasCaption = computed(() => lineSettings.original.visible || lineSettings.translated.visible);
+const captionCardStyle = computed(() => ({
+  background: `rgba(20, 20, 24, ${captionBgOpacity.value})`,
+}));
 function snapshotPreferences(): SubtitleDisplayPreferences {
   return {
     primary_line: primaryLine, overlay_visible: subtitlesVisible.value, caption_color: captionColor.value,
+    caption_bg_opacity: captionBgOpacity.value,
     lines: {
       original: { visible: lineSettings.original.visible, font_size: lineSettings.original.fontSize },
       originalPinyin: { visible: lineSettings.originalPinyin.visible, font_size: lineSettings.originalPinyin.fontSize },
@@ -70,6 +75,7 @@ watch(() => props.preferences, (preferences) => {
   if (!preferences) return;
   subtitlesVisible.value = preferences.overlay_visible;
   captionColor.value = preferences.caption_color ?? '#ffffff';
+  captionBgOpacity.value = preferences.caption_bg_opacity ?? 0.86;
   for (const key of ['original', 'originalPinyin', 'translated', 'translatedPinyin'] as const) {
     lineSettings[key].visible = preferences.lines[key].visible;
     lineSettings[key].fontSize = preferences.lines[key].font_size;
@@ -85,6 +91,7 @@ const detailLines = computed(() => [
 function lineStyle(line: SubtitleLine): { fontSize: string } { return { fontSize: `${lineSettings[line].fontSize}px` }; }
 function updateFontSize(line: SubtitleLine, event: Event): void { lineSettings[line].fontSize = Number((event.target as HTMLInputElement).value); notifyPreferences(); }
 function updateCaptionColor(event: Event): void { captionColor.value = (event.target as HTMLInputElement).value; notifyPreferences(); }
+function updateCaptionBgOpacity(event: Event): void { captionBgOpacity.value = Number((event.target as HTMLInputElement).value); notifyPreferences(); }
 function chooseDisplayMode(mode: DisplayMode): void {
   lineSettings.original.visible = mode !== 'translated';
   lineSettings.translated.visible = mode !== 'original';
@@ -173,7 +180,7 @@ async function exportSubtitles(): Promise<void> {
       </button>
     </div>
 
-    <div v-if="subtitlesVisible && hasCaption" class="caption-card" :style="{ ...lineStyle(captionLine), color: captionColor }" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
+    <div v-if="subtitlesVisible && hasCaption" class="caption-card" :style="{ ...lineStyle(captionLine), color: captionColor, ...captionCardStyle }" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
       <span v-if="lineSettings[secondaryLine].visible" class="caption-original" :class="lineSettings[primaryLine].visible ? 'caption-secondary' : 'caption-text'">{{ secondaryText }}</span>
       <span v-if="lineSettings[primaryLine].visible" class="caption-text caption-translation">{{ primaryText }}</span>
     </div>
@@ -204,6 +211,11 @@ async function exportSubtitles(): Promise<void> {
           <label for="caption-color">Màu chữ trên video</label>
           <input id="caption-color" type="color" :value="captionColor" aria-label="Màu chữ phụ đề" @input="updateCaptionColor">
           <output for="caption-color">{{ captionColor.toUpperCase() }}</output>
+        </div>
+        <div class="opacity-setting">
+          <label for="caption-bg-opacity">Nền chữ trên video</label>
+          <input id="caption-bg-opacity" type="range" min="0" max="1" step="0.01" :value="captionBgOpacity" aria-label="Độ trong suốt nền phụ đề" @input="updateCaptionBgOpacity">
+          <output for="caption-bg-opacity">{{ Math.round(captionBgOpacity * 100) }}%</output>
         </div>
       </div>
       <div v-if="detailOpen" class="export-row">

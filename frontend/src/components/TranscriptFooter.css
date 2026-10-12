@@ -312,6 +312,34 @@
   font-weight: 500;
 }
 
+.opacity-setting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-meta);
+}
+
+.opacity-setting label {
+  flex: 0 0 auto;
+  min-width: var(--subtitle-label-width);
+}
+
+.opacity-setting input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.opacity-setting output {
+  min-width: 36px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 500;
+  font-size: 11px;
+}
+
 .export-row {
   display: grid;
   grid-template-columns: var(--export-format-width) 1fr var(--export-action-width);
