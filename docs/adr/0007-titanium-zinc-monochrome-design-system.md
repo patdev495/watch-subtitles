@@ -1,0 +1,3 @@
+# Titanium Zinc Monochrome Design System
+
+To eliminate generic AI-generated aesthetic clichés (purple/navy blue tints, glossy gradients, and neon colored glows), we transitioned the desktop UI to a Titanium Zinc Monochrome design system. Surfaces use authentic neutral zinc charcoals (`#101012`, `#18181b`), sharp hairline dividers (`#27272a`), stark white typography, and flat high-contrast primary actions (`#ffffff` with `#09090b` text). This provides an authoritative, hardware-grade pro tool aesthetic (similar to macOS / Vercel engineering tools) while keeping video and bilingual subtitles completely distraction-free.

@@ -321,37 +321,5 @@ function close() {
   </Teleport>
 </template>
 
-<style scoped>
-.modal-backdrop { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--bg-backdrop); }
-.modal-card { display: flex; flex-direction: column; width: var(--settings-width); max-width: 100%; max-height: 92vh; overflow: auto; border-radius: var(--radius-card); background: var(--bg-surface); box-shadow: var(--shadow-panel); }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border-subtle); }
-.modal-title-row { display: flex; align-items: center; gap: var(--space-2); }
-.modal-title-icon, .section-icon { color: var(--text-secondary); }
-.modal-title { margin: 0; color: var(--text-primary); font-size: var(--font-title); font-weight: 600; }
-.icon-close { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
-.icon-close:hover { background: var(--bg-hover); color: var(--text-primary); }
-.modal-body { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-5) var(--space-6); }
-.save-error-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-meta); }
-.settings-section { display: flex; flex-direction: column; gap: var(--space-2); }
-.section-label { display: flex; align-items: center; gap: var(--space-2); }
-.section-title { color: var(--text-secondary); font-size: var(--font-meta); font-weight: 600; }
-.section-badge { padding: 0 var(--space-1); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); font-size: var(--font-meta); }
-.field-row, .provider-note { display: flex; gap: var(--space-2); }
-.provider-note { align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: var(--font-meta); }
-.field-input, .field-select { min-width: 0; min-height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-body); }
-.field-input { flex: 1; }
-.field-input::placeholder { color: var(--text-muted); }
-.field-select { width: 100%; }
-.btn-test { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); font-size: var(--font-meta); cursor: pointer; white-space: nowrap; }
-.btn-test:hover:not(:disabled) { background: var(--bg-selected); color: var(--text-primary); }
-.status-row { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-meta); }
-.status-ok, .status-err { color: var(--text-secondary); }
-.modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border-subtle); }
-.btn-cancel, .btn-save { min-height: var(--control-height); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); font-size: var(--font-body); font-weight: 500; cursor: pointer; }
-.btn-cancel { background: transparent; color: var(--text-secondary); }
-.btn-cancel:hover { background: var(--bg-hover); color: var(--text-primary); }
-.btn-save { background: var(--accent-primary); color: var(--accent-contrast); }
-.btn-save:hover:not(:disabled) { opacity: .88; }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity var(--transition-fast); }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
-</style>
+<style scoped src="./SettingsModal.css"></style>
+

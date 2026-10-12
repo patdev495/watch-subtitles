@@ -472,7 +472,7 @@ onMounted(() => {
       :videos="queuedVideos"
       :jobs="subtitleJobs"
       :active-path="currentFilePath"
-      :default-target-language="settings.default_target_language"
+      :default-target-language="settings.default_target_language || 'vi'"
       @close="subtitlesModalOpen = false"
       @generate="createSubtitleJob"
       @generate-all="generateAllQueuedVideos"

@@ -224,16 +224,116 @@ defineExpose({ seekTo });
 </template>
 
 <style scoped>
-.player-card { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-player); }
-.player-card:fullscreen { width: 100vw; height: 100vh; }
-.viewport { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: var(--bg-player); cursor: pointer; }
-.video-core { width: 100%; height: 100%; object-fit: contain; }
-.empty-hero { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-8); background: var(--bg-base); }
-.empty-content { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
-.upload-icon { color: var(--text-secondary); }
-.hero-subtitle { margin: 0; color: var(--text-secondary); font-size: var(--font-body); }
-.browse-btn { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--control-height); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--accent-primary); color: var(--accent-contrast); font-size: var(--font-body); font-weight: 500; cursor: pointer; }
-.browse-btn:hover { opacity: .88; }
-.controls-scrim { position: absolute; right: 0; bottom: 0; left: 0; z-index: 10; padding: var(--space-6) var(--space-4) var(--space-3); background: var(--player-scrim); opacity: 0; transition: opacity var(--transition-fast); pointer-events: none; }
-.controls-scrim.controls-visible, .controls-scrim:focus-within { opacity: 1; pointer-events: auto; }
+.player-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-player);
+}
+
+.player-card:fullscreen {
+  width: 100vw;
+  height: 100vh;
+}
+
+.viewport {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-player);
+  cursor: pointer;
+}
+
+.video-core {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.empty-hero {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-8);
+  background: var(--bg-base);
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-8) var(--space-10);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-panel);
+}
+
+.upload-icon {
+  color: var(--text-primary);
+}
+
+.hero-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-file);
+  font-weight: 500;
+}
+
+.browse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid #ffffff;
+  border-radius: var(--radius-control);
+  background: #ffffff;
+  color: #09090b;
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.browse-btn:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+.browse-btn:active {
+  background: #d4d4d8;
+}
+
+.controls-scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  padding: var(--space-8) var(--space-4) var(--space-4);
+  background: var(--player-scrim);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  pointer-events: none;
+}
+
+.controls-scrim.controls-visible,
+.controls-scrim:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
 </style>

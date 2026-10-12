@@ -216,45 +216,5 @@ async function exportSubtitles(): Promise<void> {
   </section>
 </template>
 
-<style scoped>
-.subtitle-overlay { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
-.subtitle-toolbar { position: absolute; top: var(--space-4); right: var(--space-4); display: flex; gap: var(--space-1); opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
-.subtitle-overlay.controls-visible .subtitle-toolbar, .subtitle-overlay.panel-open .subtitle-toolbar, .subtitle-overlay:focus-within .subtitle-toolbar { opacity: 1; pointer-events: auto; }
-.toolbar-button { display: inline-flex; align-items: center; gap: var(--space-1); height: var(--control-height); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--bg-overlay); color: var(--text-primary); cursor: pointer; font-size: var(--font-meta); font-weight: 500; }
-.toolbar-button:hover, .icon-button:hover { background: var(--bg-hover); }
-.caption-card { position: absolute; left: 50%; bottom: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-1); width: max-content; max-width: min(90%, var(--caption-max-width)); padding: var(--space-2) var(--space-3); transform: translateX(-50%); color: #fff; font-weight: 500; line-height: 1.4; text-align: center; text-shadow: 0 1px 2px #000, 0 2px 5px #000, 0 0 9px rgb(0 0 0 / 90%); -webkit-text-stroke: .3px rgb(0 0 0 / 80%); pointer-events: auto; cursor: pointer; text-wrap: balance; }
-.subtitle-overlay.controls-visible .caption-card { bottom: var(--caption-offset); }
-.caption-original { color: inherit; }
-.caption-translation { color: inherit; font-weight: 500; }
-.caption-secondary { font-size: .8em; font-weight: 400; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
-.caption-text { overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
-.cue-drawer { position: absolute; top: var(--drawer-top); right: var(--space-4); width: min(var(--popover-width), calc(100% - var(--drawer-inset))); max-height: calc(100% - var(--drawer-height-inset)); overflow: auto; padding: var(--space-4); border-radius: var(--radius-card); background: var(--bg-overlay-solid); color: var(--text-primary); box-shadow: var(--shadow-panel); pointer-events: auto; }
-.drawer-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
-.drawer-header strong { font-size: var(--font-file); font-weight: 600; }
-.icon-button { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
-.display-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); margin-bottom: var(--space-3); }
-.display-mode button, .export-row button { height: var(--control-height); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); cursor: pointer; }
-.display-mode button:hover, .export-row button:hover { color: var(--text-primary); }
-.display-mode button.selected { background: var(--bg-selected); color: var(--text-primary); }
-.detail-line { padding: var(--space-2) 0; }
-.detail-line > span { display: block; margin-bottom: var(--space-1); color: var(--text-muted); font-size: var(--font-meta); font-weight: 500; }
-.detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
-.selectable-detail-text { cursor: text; user-select: text !important; -webkit-user-select: text !important; pointer-events: auto; }
-.detail-line--original p { color: var(--text-secondary); }
-.detail-line--translated p { color: var(--text-primary); font-weight: 500; }
-.detail-line--originalPinyin p, .detail-line--translatedPinyin p { color: var(--text-muted); }
-.display-settings { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
-.display-settings > strong { color: var(--text-primary); font-size: var(--font-meta); font-weight: 600; }
-.setting-row { display: grid; grid-template-columns: var(--control-height) var(--subtitle-label-width) 1fr var(--subtitle-output-width); align-items: center; gap: var(--space-1); margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--font-meta); }
-.setting-row input { width: 100%; }
-.setting-row output { font-variant-numeric: tabular-nums; }
-.color-setting { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); color: var(--text-secondary); font-size: var(--font-meta); }
-.color-setting label { flex: 1; }
-.color-setting input { width: 40px; height: var(--control-height); padding: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-hover); cursor: pointer; }
-.color-setting output { min-width: 64px; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
-.export-row { display: grid; grid-template-columns: var(--export-format-width) 1fr var(--export-action-width); gap: var(--space-1); margin-top: var(--space-3); }
-.export-row select { min-width: 0; border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-meta); }
-.export-row button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
-.export-message { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--font-meta); }
-@media (max-width: 900px) { .subtitle-toolbar { top: var(--space-2); right: var(--space-2); } .cue-drawer { top: var(--drawer-compact-top); right: var(--space-2); max-height: calc(100% - var(--drawer-compact-height-inset)); } }
-</style>
+<style scoped src="./TranscriptFooter.css"></style>
+

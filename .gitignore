@@ -20,6 +20,10 @@ venv/
 # Frontend build
 frontend/dist/
 frontend/node_modules/
+node_modules/
+
+# Local codegraph daemon state
+.codegraph/daemon.pid
 
 # Agents skill data (large generated files, not source)
 .agents/skills/ui-ux-pro-max/data/
