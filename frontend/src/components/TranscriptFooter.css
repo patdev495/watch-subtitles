@@ -69,7 +69,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  max-width: min(90%, var(--caption-max-width));
+  max-width: 66%;
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-card);
   background: var(--bg-caption);
