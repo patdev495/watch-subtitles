@@ -9,6 +9,7 @@ def test_bridge_restores_subtitle_display_preferences_after_relaunch(tmp_path: P
     selected = {
         "primary_line": "original",
         "overlay_visible": False,
+        "caption_color": "#ffcc00",
         "lines": {
             "original": {"visible": True, "font_size": 27},
             "translated": {"visible": False, "font_size": 30},

@@ -13,7 +13,6 @@ const emit = defineEmits<{
   (event: 'source-change', video: PlaybackVideo, source: string): void;
 }>();
 const selection = reactive<Record<string, { source: string; target: string }>>({});
-const selectedVideo = computed(() => props.videos.find((video) => video.path === props.activePath) ?? props.videos[0]);
 function pairFor(video: PlaybackVideo): { source: string; target: string } {
   return selection[video.path] ?? { source: video.sourceLanguage ?? 'en', target: props.defaultTargetLanguage };
 }
@@ -52,17 +51,14 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
         <button class="close-button" aria-label="Đóng modal phụ đề" @click="emit('close')"><X :size="16" aria-hidden="true" /></button>
       </header>
       <div class="modal-actions"><button :disabled="eligibleRequests.length === 0" @click="emit('generate-all', eligibleRequests)">Tạo tất cả</button></div>
-      <div v-if="selectedVideo" class="active-language-pair">
-        <strong :title="selectedVideo.filename">{{ selectedVideo.filename }}</strong>
-        <div class="language-pair">
-          <label>Nguồn <select data-test="source-language" :value="pairFor(selectedVideo).source" @change="setLanguage(selectedVideo, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
-          <label>Đích <select data-test="target-language" :value="pairFor(selectedVideo).target" @change="setLanguage(selectedVideo, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
-        </div>
-      </div>
       <p v-if="videos.length === 0" class="empty">Playback Queue chưa có Video.</p>
       <ol v-else class="modal-list">
-        <li v-for="video in videos" :key="video.path" class="modal-row">
+        <li v-for="video in videos" :key="video.path" class="modal-row" :class="{ active: video.path === activePath }">
           <strong>{{ video.filename }}</strong>
+          <div class="language-pair">
+            <label>Nguồn <select data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+            <label>Đích <select data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+          </div>
           <span class="availability" :class="{ 'has-cache': video.cachedPairs?.length }">{{ video.cachedPairs?.length ? `Subtitle Availability: ${video.cachedPairs.map(([source, target]) => `${source} → ${target}`).join(', ')}` : 'Chưa có phụ đề' }}</span>
           <span class="job-state" :class="{ 'in-progress': activeJob(video), failed: latestJob(video)?.status === 'failed' }">{{ stateLabel(video) }}</span>
           <p v-if="latestJob(video)?.error" class="job-error">{{ latestJob(video)?.error }}</p>
@@ -88,10 +84,9 @@ button:hover:not(:disabled) { background: var(--bg-selected); }
 .modal-actions { display: flex; justify-content: flex-end; margin: var(--space-4) 0; }
 .modal-actions button { background: var(--accent-primary); color: var(--accent-contrast); }
 .modal-actions button:hover:not(:disabled) { opacity: .88; background: var(--accent-primary); }
-.active-language-pair { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); padding: var(--space-3); border-radius: var(--radius-control); background: var(--bg-hover); }
-.active-language-pair strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-file); font-weight: 500; }
 .modal-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .modal-row { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-control); }
+.modal-row.active { background: var(--bg-hover); }
 .modal-row:hover { background: var(--bg-hover); }
 .modal-row strong { overflow-wrap: anywhere; font-size: var(--font-file); font-weight: 500; }
 .language-pair, .row-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

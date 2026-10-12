@@ -59,7 +59,7 @@ const { queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, crea
 const settingsOpen = ref<boolean>(false);
 const subtitlesModalOpen = ref(false);
 const displayPreferences = ref<SubtitleDisplayPreferences>({
-  primary_line: 'translated', overlay_visible: true,
+  primary_line: 'translated', overlay_visible: true, caption_color: '#ffffff',
   lines: {
     original: { visible: true, font_size: 20 }, originalPinyin: { visible: true, font_size: 15 },
     translated: { visible: true, font_size: 18 }, translatedPinyin: { visible: true, font_size: 15 },

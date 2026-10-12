@@ -49,6 +49,7 @@ export type SubtitleLine = 'original' | 'originalPinyin' | 'translated' | 'trans
 export interface SubtitleDisplayPreferences {
   primary_line: 'original' | 'translated';
   overlay_visible: boolean;
+  caption_color?: string;
   lines: Record<SubtitleLine, { visible: boolean; font_size: number }>;
 }
 

@@ -80,7 +80,7 @@ describe('App', () => {
     expect(wrapper.find('.caption-card').exists()).toBe(false);
     await wrapper.get('button[aria-label="Hiện phụ đề"]').trigger('click');
     await flushPromises();
-    expect(api.save_subtitle_display_preferences).toHaveBeenCalledWith(expect.objectContaining({ primary_line: 'original', overlay_visible: true }));
+    expect(api.save_subtitle_display_preferences).toHaveBeenCalledWith(expect.objectContaining({ primary_line: 'translated', overlay_visible: true }));
     wrapper.unmount();
   });
   it('opens Subtitle Generation Modal without leaving the playback workspace', async () => {

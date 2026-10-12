@@ -20,22 +20,19 @@ const emit = defineEmits<{ (event: 'update:preferences', value: SubtitleDisplayP
 const cuesRef = computed(() => props.cues);
 const currentTimeRef = computed(() => props.currentTime);
 const { activeCue } = useTranscript(cuesRef, currentTimeRef);
-const primaryLine = ref<'original' | 'translated'>(props.preferences?.primary_line ?? 'translated');
+const primaryLine = 'translated' as const;
+const secondaryLine = 'original' as const;
 const detailOpen = ref(false);
 const settingsOpen = ref(false);
 const subtitlesVisible = ref(props.preferences?.overlay_visible ?? true);
+const captionColor = ref(props.preferences?.caption_color ?? '#ffffff');
 const chineseLanguage = (language: string): boolean => language.toLowerCase().startsWith('zh');
 const originalPinyin = computed(() => activeCue.value && chineseLanguage(props.sourceLanguage)
   ? pinyin(activeCue.value.originalText, { toneType: 'symbol' }) : '');
 const translatedPinyin = computed(() => activeCue.value && chineseLanguage(props.targetLanguage)
   ? pinyin(activeCue.value.translatedText, { toneType: 'symbol' }) : '');
-const primaryText = computed(() => activeCue.value
-  ? primaryLine.value === 'original' ? activeCue.value.originalText : activeCue.value.translatedText
-  : '');
-const secondaryLine = computed<'original' | 'translated'>(() => primaryLine.value === 'original' ? 'translated' : 'original');
-const secondaryText = computed(() => activeCue.value
-  ? secondaryLine.value === 'original' ? activeCue.value.originalText : activeCue.value.translatedText
-  : '');
+const primaryText = computed(() => activeCue.value?.translatedText ?? '');
+const secondaryText = computed(() => activeCue.value?.originalText ?? '');
 
 const lineSettings = reactive<Record<SubtitleLine, { visible: boolean; fontSize: number }>>({
   original: { visible: props.preferences?.lines.original.visible ?? true, fontSize: props.preferences?.lines.original.font_size ?? 20 },
@@ -43,9 +40,23 @@ const lineSettings = reactive<Record<SubtitleLine, { visible: boolean; fontSize:
   translated: { visible: props.preferences?.lines.translated.visible ?? true, fontSize: props.preferences?.lines.translated.font_size ?? 18 },
   translatedPinyin: { visible: props.preferences?.lines.translatedPinyin.visible ?? true, fontSize: props.preferences?.lines.translatedPinyin.font_size ?? 15 },
 });
+type DisplayMode = 'original' | 'translated' | 'bilingual';
+const displayModes: { value: DisplayMode; label: string }[] = [
+  { value: 'original', label: 'Chỉ gốc' },
+  { value: 'translated', label: 'Chỉ bản dịch' },
+  { value: 'bilingual', label: 'Cả hai' },
+];
+const displayMode = computed<DisplayMode>(() => {
+  if (lineSettings.original.visible && !lineSettings.translated.visible) return 'original';
+  if (!lineSettings.original.visible && lineSettings.translated.visible) return 'translated';
+  return 'bilingual';
+});
+const captionLine = computed<'original' | 'translated'>(() =>
+  lineSettings.translated.visible ? 'translated' : 'original');
+const hasCaption = computed(() => lineSettings.original.visible || lineSettings.translated.visible);
 function snapshotPreferences(): SubtitleDisplayPreferences {
   return {
-    primary_line: primaryLine.value, overlay_visible: subtitlesVisible.value,
+    primary_line: primaryLine, overlay_visible: subtitlesVisible.value, caption_color: captionColor.value,
     lines: {
       original: { visible: lineSettings.original.visible, font_size: lineSettings.original.fontSize },
       originalPinyin: { visible: lineSettings.originalPinyin.visible, font_size: lineSettings.originalPinyin.fontSize },
@@ -57,8 +68,8 @@ function snapshotPreferences(): SubtitleDisplayPreferences {
 function notifyPreferences(): void { emit('update:preferences', snapshotPreferences()); }
 watch(() => props.preferences, (preferences) => {
   if (!preferences) return;
-  primaryLine.value = preferences.primary_line;
   subtitlesVisible.value = preferences.overlay_visible;
+  captionColor.value = preferences.caption_color ?? '#ffffff';
   for (const key of ['original', 'originalPinyin', 'translated', 'translatedPinyin'] as const) {
     lineSettings[key].visible = preferences.lines[key].visible;
     lineSettings[key].fontSize = preferences.lines[key].font_size;
@@ -73,9 +84,21 @@ const detailLines = computed(() => [
 
 function lineStyle(line: SubtitleLine): { fontSize: string } { return { fontSize: `${lineSettings[line].fontSize}px` }; }
 function updateFontSize(line: SubtitleLine, event: Event): void { lineSettings[line].fontSize = Number((event.target as HTMLInputElement).value); notifyPreferences(); }
-function choosePrimary(line: 'original' | 'translated'): void { primaryLine.value = line; notifyPreferences(); }
+function updateCaptionColor(event: Event): void { captionColor.value = (event.target as HTMLInputElement).value; notifyPreferences(); }
+function chooseDisplayMode(mode: DisplayMode): void {
+  lineSettings.original.visible = mode !== 'translated';
+  lineSettings.translated.visible = mode !== 'original';
+  notifyPreferences();
+}
 function toggleSubtitles(): void { subtitlesVisible.value = !subtitlesVisible.value; notifyPreferences(); }
-function toggleLine(line: SubtitleLine): void { lineSettings[line].visible = !lineSettings[line].visible; notifyPreferences(); }
+function toggleLine(line: SubtitleLine): void {
+  lineSettings[line].visible = !lineSettings[line].visible;
+  if ((line === 'original' || line === 'translated')
+    && !lineSettings.original.visible && !lineSettings.translated.visible) {
+    lineSettings[line === 'original' ? 'translated' : 'original'].visible = true;
+  }
+  notifyPreferences();
+}
 function closePanel(): void { detailOpen.value = false; settingsOpen.value = false; }
 function toggleSettingsPanel(): void {
   if (settingsOpen.value) {
@@ -150,9 +173,9 @@ async function exportSubtitles(): Promise<void> {
       </button>
     </div>
 
-    <div v-if="subtitlesVisible && lineSettings[primaryLine].visible" class="caption-card" :style="lineStyle(primaryLine)" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
-      <span v-if="lineSettings[secondaryLine].visible" :class="secondaryLine === 'original' ? 'caption-original' : 'caption-translation'">{{ secondaryText }}</span>
-      <span class="caption-text" :class="primaryLine === 'original' ? 'caption-original' : 'caption-translation'">{{ primaryText }}</span>
+    <div v-if="subtitlesVisible && hasCaption" class="caption-card" :style="{ ...lineStyle(captionLine), color: captionColor }" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
+      <span v-if="lineSettings[secondaryLine].visible" class="caption-original" :class="lineSettings[primaryLine].visible ? 'caption-secondary' : 'caption-text'">{{ secondaryText }}</span>
+      <span v-if="lineSettings[primaryLine].visible" class="caption-text caption-translation">{{ primaryText }}</span>
     </div>
 
     <aside v-if="detailOpen || settingsOpen" class="cue-drawer" :aria-label="detailOpen ? 'Chi tiết phụ đề hiện tại' : 'Chỉnh hiển thị phụ đề'">
@@ -160,16 +183,15 @@ async function exportSubtitles(): Promise<void> {
         <strong>{{ detailOpen ? 'Chi tiết câu hiện tại' : 'Chỉnh hiển thị' }}</strong>
         <button class="icon-button" aria-label="Đóng bảng phụ đề" @click="closePanel"><X :size="16" aria-hidden="true" /></button>
       </div>
-      <div v-if="detailOpen || settingsOpen" class="primary-switch" aria-label="Dòng sub trên video">
-        <button :class="{ selected: primaryLine === 'original' }" :aria-pressed="primaryLine === 'original'" aria-label="Hiển thị dòng gốc trên video" @click="choosePrimary('original')">Gốc</button>
-        <button :class="{ selected: primaryLine === 'translated' }" :aria-pressed="primaryLine === 'translated'" aria-label="Hiển thị dòng dịch trên video" @click="choosePrimary('translated')">Dịch</button>
+      <div class="display-mode" role="group" aria-label="Chế độ hiển thị phụ đề">
+        <button v-for="mode in displayModes" :key="mode.value" :class="{ selected: displayMode === mode.value }" :aria-pressed="displayMode === mode.value" @click="chooseDisplayMode(mode.value)">{{ mode.label }}</button>
       </div>
       <div v-for="line in detailOpen ? detailLines : []" :key="line.key" v-show="lineSettings[line.key].visible" class="detail-line" :class="`detail-line--${line.key}`">
         <span>{{ line.label }}</span>
         <p class="selectable-detail-text" :style="lineStyle(line.key)" @pointerdown.stop @mousedown.stop>{{ line.text }}</p>
       </div>
       <div v-if="settingsOpen" class="display-settings">
-        <strong>Hiển thị &amp; cỡ chữ</strong>
+        <strong>Hiển thị, cỡ chữ &amp; màu chữ</strong>
         <div v-for="line in detailLines" :key="line.key" class="setting-row">
           <button class="icon-button" :aria-label="`${lineSettings[line.key].visible ? 'Ẩn' : 'Hiện'} dòng ${line.label}`" @click="toggleLine(line.key)">
             <Eye v-if="lineSettings[line.key].visible" :size="16" aria-hidden="true" /><EyeOff v-else :size="16" aria-hidden="true" />
@@ -177,6 +199,11 @@ async function exportSubtitles(): Promise<void> {
           <label :for="`font-${line.key}`">{{ line.label }}</label>
           <input :id="`font-${line.key}`" :aria-label="`Cỡ chữ dòng ${line.label}`" type="range" :min="line.minimum" max="36" :value="lineSettings[line.key].fontSize" @input="updateFontSize(line.key, $event)">
           <output>{{ lineSettings[line.key].fontSize }}px</output>
+        </div>
+        <div class="color-setting">
+          <label for="caption-color">Màu chữ trên video</label>
+          <input id="caption-color" type="color" :value="captionColor" aria-label="Màu chữ phụ đề" @input="updateCaptionColor">
+          <output for="caption-color">{{ captionColor.toUpperCase() }}</output>
         </div>
       </div>
       <div v-if="detailOpen" class="export-row">
@@ -195,19 +222,20 @@ async function exportSubtitles(): Promise<void> {
 .subtitle-overlay.controls-visible .subtitle-toolbar, .subtitle-overlay.panel-open .subtitle-toolbar, .subtitle-overlay:focus-within .subtitle-toolbar { opacity: 1; pointer-events: auto; }
 .toolbar-button { display: inline-flex; align-items: center; gap: var(--space-1); height: var(--control-height); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--bg-overlay); color: var(--text-primary); cursor: pointer; font-size: var(--font-meta); font-weight: 500; }
 .toolbar-button:hover, .icon-button:hover { background: var(--bg-hover); }
-.caption-card { position: absolute; left: 50%; bottom: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-1); width: max-content; max-width: min(90%, var(--caption-max-width)); padding: var(--space-2) var(--space-3); transform: translateX(-50%); border-radius: var(--radius-control); background: var(--bg-caption); color: var(--text-primary); font-weight: 500; line-height: 1.4; text-align: center; pointer-events: auto; cursor: pointer; text-wrap: balance; }
+.caption-card { position: absolute; left: 50%; bottom: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-1); width: max-content; max-width: min(90%, var(--caption-max-width)); padding: var(--space-2) var(--space-3); transform: translateX(-50%); color: #fff; font-weight: 500; line-height: 1.4; text-align: center; text-shadow: 0 1px 2px #000, 0 2px 5px #000, 0 0 9px rgb(0 0 0 / 90%); -webkit-text-stroke: .3px rgb(0 0 0 / 80%); pointer-events: auto; cursor: pointer; text-wrap: balance; }
 .subtitle-overlay.controls-visible .caption-card { bottom: var(--caption-offset); }
-.caption-original { color: var(--text-secondary); font-size: .8em; font-weight: 400; }
-.caption-translation { color: var(--text-primary); font-size: 1em; font-weight: 500; }
+.caption-original { color: inherit; }
+.caption-translation { color: inherit; font-weight: 500; }
+.caption-secondary { font-size: .8em; font-weight: 400; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 .caption-text { overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 .cue-drawer { position: absolute; top: var(--drawer-top); right: var(--space-4); width: min(var(--popover-width), calc(100% - var(--drawer-inset))); max-height: calc(100% - var(--drawer-height-inset)); overflow: auto; padding: var(--space-4); border-radius: var(--radius-card); background: var(--bg-overlay-solid); color: var(--text-primary); box-shadow: var(--shadow-panel); pointer-events: auto; }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
 .drawer-header strong { font-size: var(--font-file); font-weight: 600; }
 .icon-button { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
-.primary-switch { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-bottom: var(--space-3); }
-.primary-switch button, .export-row button { height: var(--control-height); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); cursor: pointer; }
-.primary-switch button:hover, .export-row button:hover { color: var(--text-primary); }
-.primary-switch button.selected { background: var(--bg-selected); color: var(--text-primary); }
+.display-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); margin-bottom: var(--space-3); }
+.display-mode button, .export-row button { height: var(--control-height); border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-secondary); cursor: pointer; }
+.display-mode button:hover, .export-row button:hover { color: var(--text-primary); }
+.display-mode button.selected { background: var(--bg-selected); color: var(--text-primary); }
 .detail-line { padding: var(--space-2) 0; }
 .detail-line > span { display: block; margin-bottom: var(--space-1); color: var(--text-muted); font-size: var(--font-meta); font-weight: 500; }
 .detail-line p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
@@ -220,6 +248,10 @@ async function exportSubtitles(): Promise<void> {
 .setting-row { display: grid; grid-template-columns: var(--control-height) var(--subtitle-label-width) 1fr var(--subtitle-output-width); align-items: center; gap: var(--space-1); margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--font-meta); }
 .setting-row input { width: 100%; }
 .setting-row output { font-variant-numeric: tabular-nums; }
+.color-setting { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); color: var(--text-secondary); font-size: var(--font-meta); }
+.color-setting label { flex: 1; }
+.color-setting input { width: 40px; height: var(--control-height); padding: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-hover); cursor: pointer; }
+.color-setting output { min-width: 64px; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
 .export-row { display: grid; grid-template-columns: var(--export-format-width) 1fr var(--export-action-width); gap: var(--space-1); margin-top: var(--space-3); }
 .export-row select { min-width: 0; border: 0; border-radius: var(--radius-control); background: var(--bg-hover); color: var(--text-primary); font-size: var(--font-meta); }
 .export-row button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }

@@ -33,6 +33,7 @@ class SubtitleDisplayLines(BaseModel):
 class SubtitleDisplayPreferences(BaseModel):
     primary_line: Literal["original", "translated"] = "translated"
     overlay_visible: bool = True
+    caption_color: str = Field(default="#ffffff", pattern=r"^#[0-9a-fA-F]{6}$")
     lines: SubtitleDisplayLines = Field(default_factory=SubtitleDisplayLines)
 
 

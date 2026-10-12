@@ -3,6 +3,33 @@ import { mount } from '@vue/test-utils';
 import SubtitleGenerationModal from '../SubtitleGenerationModal.vue';
 
 describe('SubtitleGenerationModal', () => {
+  it('shows one row per video with independently editable source and target languages', async () => {
+    const videos = [
+      { path: '/folder-a/1.mp4', filename: '1.mp4', sourceLanguage: 'en', cachedPairs: [] },
+      { path: '/folder-b/1.mp4', filename: '1.mp4', sourceLanguage: 'en', cachedPairs: [] },
+      { path: '/videos/2.mp4', filename: '2.mp4', sourceLanguage: 'en', cachedPairs: [] },
+    ];
+    const wrapper = mount(SubtitleGenerationModal, { props: {
+      open: true, videos, jobs: [], defaultTargetLanguage: 'vi', activePath: videos[0].path,
+    } });
+    const rows = wrapper.findAll('.modal-row');
+    expect(rows).toHaveLength(3);
+    expect(wrapper.find('.active-language-pair').exists()).toBe(false);
+    for (const row of rows) {
+      expect(row.findAll('[data-test="source-language"]')).toHaveLength(1);
+      expect(row.findAll('[data-test="target-language"]')).toHaveLength(1);
+    }
+
+    await rows[1]!.get('[data-test="source-language"]').setValue('zh-CN');
+    await rows[2]!.get('[data-test="target-language"]').setValue('zh-TW');
+    await wrapper.get('.modal-actions button').trigger('click');
+    expect(wrapper.emitted('generate-all')?.[0]?.[0]).toEqual([
+      { video: videos[0], source: 'en', target: 'vi', force: false },
+      { video: videos[1], source: 'zh-CN', target: 'vi', force: false },
+      { video: videos[2], source: 'en', target: 'zh-TW', force: false },
+    ]);
+  });
+
   it('creates a job for one video with its edited language pair', async () => {
     const video = { path: '/videos/lesson.mp4', filename: 'lesson.mp4', sourceLanguage: 'en', cachedPairs: [] };
     const wrapper = mount(SubtitleGenerationModal, { props: { open: true, videos: [video], jobs: [], defaultTargetLanguage: 'vi' } });

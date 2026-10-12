@@ -20,7 +20,7 @@ describe('TranscriptFooter', () => {
     expect(wrapper.get('input[aria-label="Cỡ chữ dòng Gốc"]').element).toHaveProperty('value', '27');
     expect(wrapper.get('.detail-line--translated').attributes('style')).toContain('display: none');
     await wrapper.get('button[aria-label="Hiện phụ đề"]').trigger('click');
-    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({ primary_line: 'original', overlay_visible: true });
+    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({ primary_line: 'translated', overlay_visible: true });
   });
   it('shows only cue active at current playback time', () => {
     const wrapper = mount(TranscriptFooter, {
@@ -122,8 +122,49 @@ describe('TranscriptFooter', () => {
     expect(wrapper.get('.detail-line--original .selectable-detail-text').text()).toBe('Original');
     expect(wrapper.get('.detail-line--translated .selectable-detail-text').text()).toBe('Translated');
 
-    await wrapper.get('button[aria-label="Hiển thị dòng gốc trên video"]').trigger('click');
+    await wrapper.get('[aria-label="Chế độ hiển thị phụ đề"] button:first-child').trigger('click');
     await wrapper.get('button[aria-label="Hiện phụ đề"]').trigger('click');
     expect(wrapper.get('.caption-card').text()).toContain('Original');
+  });
+
+  it('switches between original, translation, and bilingual captions and saves each choice', async () => {
+    const wrapper = mount(TranscriptFooter, { props: {
+      cues: [{ id: '1', start: 0, end: 2, originalText: 'Original', translatedText: 'Translated' }],
+      currentTime: 1, sourceLanguage: 'en', targetLanguage: 'vi',
+    } });
+    await wrapper.get('button[aria-label="Mở chỉnh phụ đề"]').trigger('click');
+    const modes = wrapper.get('[aria-label="Chế độ hiển thị phụ đề"]');
+    expect(wrapper.find('[aria-label="Dòng sub trên video"]').exists()).toBe(false);
+
+    await modes.get('button:nth-child(1)').trigger('click');
+    expect(wrapper.get('.caption-card').text()).toBe('Original');
+    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({
+      lines: { original: { visible: true }, translated: { visible: false } },
+    });
+
+    await modes.get('button:nth-child(2)').trigger('click');
+    expect(wrapper.get('.caption-card').text()).toBe('Translated');
+    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({
+      lines: { original: { visible: false }, translated: { visible: true } },
+    });
+
+    await modes.get('button:nth-child(3)').trigger('click');
+    expect(wrapper.get('.caption-card').text()).toContain('Original');
+    expect(wrapper.get('.caption-card').text()).toContain('Translated');
+    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({
+      lines: { original: { visible: true }, translated: { visible: true } },
+    });
+  });
+
+  it('applies and saves the selected subtitle text color', async () => {
+    const wrapper = mount(TranscriptFooter, { props: {
+      cues: [{ id: '1', start: 0, end: 2, originalText: 'Original', translatedText: 'Translated' }],
+      currentTime: 1, sourceLanguage: 'en', targetLanguage: 'vi',
+    } });
+    await wrapper.get('button[aria-label="Mở chỉnh phụ đề"]').trigger('click');
+    await wrapper.get('input[aria-label="Màu chữ phụ đề"]').setValue('#ffcc00');
+
+    expect(wrapper.get('.caption-card').attributes('style')).toContain('color: #ffcc00');
+    expect(wrapper.emitted('update:preferences')?.at(-1)?.[0]).toMatchObject({ caption_color: '#ffcc00' });
   });
 });
