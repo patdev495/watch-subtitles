@@ -5,12 +5,13 @@ from typing import Optional, Dict, Any
 from urllib.parse import quote
 import webview
 from pydantic import BaseModel
-from backend.settings import AppSettings, SubtitleDisplayPreferences, load_settings, save_settings as persist_settings
+from backend.settings import AppSettings, SubtitleDisplayPreferences, merge_settings, load_settings, save_settings as persist_settings
 from backend.playback_queue import import_video_files, import_video_folder, get_playback_queue as read_playback_queue, save_playback_queue as persist_playback_queue
 from backend.providers import STT_PROVIDERS, TRANSLATION_PROVIDERS, TTS_PROVIDERS
 from backend.fingerprint import compute_video_fingerprint
 from backend.cache import SubtitleCache
 from backend.audio import extract_audio
+from backend.bridge_ui import InterfaceBridge
 from backend.pipeline import run_subtitling_pipeline
 from backend.export import format_srt, format_vtt
 from backend.jobs import DuplicateActiveJobError, JobRunner, SubtitleJob, SubtitleJobScheduler
@@ -33,7 +34,7 @@ class VideoDialogResponse(BaseModel):
     filename: Optional[str] = None
     stream_url: Optional[str] = None
 
-class BridgeApi:
+class BridgeApi(InterfaceBridge):
     def __init__(
         self, port: int, cache: Optional[SubtitleCache] = None, job_runner: Optional[JobRunner] = None
     ) -> None:
@@ -131,9 +132,7 @@ class BridgeApi:
 
     def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Persist settings from frontend. Returns saved settings for confirmation."""
-        settings = AppSettings(**data)
-        settings.playback_queue = load_settings().playback_queue
-        settings.subtitle_display_preferences = load_settings().subtitle_display_preferences
+        settings = merge_settings(data)
         persist_settings(settings)
         return settings.model_dump()
 

@@ -33,6 +33,8 @@ export interface PingResponse {
   message: string;
 }
 
+export type ThemeName = 'dark' | 'light';
+
 export interface AppSettings {
   deepgram_api_key: string;
   assemblyai_api_key: string;
@@ -40,8 +42,19 @@ export interface AppSettings {
   default_target_language: string;
   stt_provider: string;
   translation_provider: string;
+  theme?: ThemeName;
   tts_provider?: string;
   tts_api_key?: string;
+}
+
+export interface ThemeResponse {
+  theme: ThemeName;
+}
+
+export interface ThumbnailResponse {
+  ok: boolean;
+  url?: string;
+  error?: string;
 }
 
 export type SubtitleLine = 'original' | 'originalPinyin' | 'translated' | 'translatedPinyin';
@@ -123,6 +136,9 @@ export interface PyWebViewApi {
   save_settings: (data: AppSettings) => Promise<AppSettings>;
   get_subtitle_display_preferences: () => Promise<SubtitleDisplayPreferences>;
   save_subtitle_display_preferences: (data: SubtitleDisplayPreferences) => Promise<SubtitleDisplayPreferences>;
+  get_theme: () => Promise<ThemeResponse>;
+  save_theme: (theme: ThemeName) => Promise<ThemeResponse>;
+  get_thumbnail_url: (video_path: string) => Promise<ThumbnailResponse>;
   test_connection: (
     provider_type: 'stt' | 'translation' | 'tts',
     provider_name: string,

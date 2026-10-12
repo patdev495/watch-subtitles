@@ -8,8 +8,11 @@ import SettingsModal from './components/SettingsModal.vue';
 import SubtitleGenerationModal from './components/SubtitleGenerationModal.vue';
 import PlaybackQueue from './components/PlaybackQueue.vue';
 import { useSubtitleQueue } from './composables/useSubtitleQueue';
+import { useTheme } from './composables/useTheme';
+import { useQueueNavigation } from './composables/useQueueNavigation';
+import { useSubtitleDisplayPreferences } from './composables/useSubtitleDisplayPreferences';
 import { getMockCues } from './fixtures/mockCues';
-import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob, PlaybackVideo, PlaybackQueueState, SubtitleDisplayPreferences } from './types';
+import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob, PlaybackVideo, PlaybackQueueState } from './types';
 // ── Video state ──────────────────────────────────────────────────────────────
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
@@ -36,6 +39,8 @@ function loadMockCues(): void {
   cues.value = getMockCues();
 }
 
+const { loadTheme } = useTheme();
+
 const { queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, generateAllQueuedVideos, retrySubtitleJob } = useSubtitleQueue(
   currentFilePath,
   (job, previous) => {
@@ -58,14 +63,7 @@ const { queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, crea
 // ── Settings state ───────────────────────────────────────────────────────────
 const settingsOpen = ref<boolean>(false);
 const subtitlesModalOpen = ref(false);
-const displayPreferences = ref<SubtitleDisplayPreferences>({
-  primary_line: 'translated', overlay_visible: true, caption_color: '#ffffff',
-  lines: {
-    original: { visible: true, font_size: 20 }, originalPinyin: { visible: true, font_size: 15 },
-    translated: { visible: true, font_size: 18 }, translatedPinyin: { visible: true, font_size: 15 },
-  },
-});
-let displaySavePending: Promise<void> = Promise.resolve();
+const { displayPreferences, loadDisplayPreferences, saveDisplayPreferences } = useSubtitleDisplayPreferences();
 const settings = ref<AppSettings>({
   deepgram_api_key: '',
   assemblyai_api_key: '',
@@ -85,6 +83,8 @@ async function loadSettings(): Promise<void> {
   }
 }
 
+const { hasPrevious, hasNext, playNext, playPrevious } = useQueueNavigation(queuedVideos, currentFilePath, selectQueueVideo);
+
 function queueState(): PlaybackQueueState {
   return {
     videos: queuedVideos.value.map((video) => ({ path: video.path, source_language: video.sourceLanguage ?? 'en' })),
@@ -99,22 +99,6 @@ function saveQueue(): void {
   if (!restored.value || !api?.save_playback_queue) return;
   const snapshot = queueState();
   persistPending = persistPending.then(async () => { await api.save_playback_queue(snapshot); }).catch((error: unknown) => { console.error('Failed to save Playback Queue:', error); });
-}
-
-async function loadDisplayPreferences(): Promise<void> {
-  const api = window.pywebview?.api;
-  if (!api?.get_subtitle_display_preferences) return;
-  try { displayPreferences.value = await api.get_subtitle_display_preferences(); }
-  catch (error) { console.error('Failed to restore subtitle display preferences:', error); }
-}
-
-function saveDisplayPreferences(preferences: SubtitleDisplayPreferences): void {
-  displayPreferences.value = preferences;
-  const api = window.pywebview?.api;
-  if (!api?.save_subtitle_display_preferences) return;
-  displaySavePending = displaySavePending.then(async () => {
-    await api.save_subtitle_display_preferences(preferences);
-  }).catch((error: unknown) => { console.error('Failed to save subtitle display preferences:', error); });
 }
 
 function savePlaybackTime(): void {
@@ -167,6 +151,7 @@ async function checkBackendBridge(): Promise<void> {
           backendConnected.value = res.status === 'ok';
           await loadSettings();
           await loadDisplayPreferences();
+          await loadTheme();
           await restoreQueue();
           await refreshSubtitleJobs();
         } catch (err) {
@@ -319,11 +304,7 @@ function clearPlaybackQueue(): void {
 
 async function advanceQueue(): Promise<void> {
   if (!autoAdvance.value) return;
-  const index = queuedVideos.value.findIndex((video) => video.path === currentFilePath.value);
-  for (const video of queuedVideos.value.slice(index + 1)) {
-    await selectQueueVideo(video as PlaybackVideo);
-    if (currentFilePath.value === video.path && !video.error) return;
-  }
+  await playNext();
 }
 
 function handlePlaybackError(): void {
@@ -389,6 +370,7 @@ onMounted(() => {
   if (window.pywebview?.api) {
     void loadSettings();
     void loadDisplayPreferences();
+    void loadTheme();
     void restoreQueue();
   }
   window.addEventListener('subtitle-job-progress', (event: Event) => {
@@ -445,11 +427,15 @@ onMounted(() => {
           :src="videoSrc"
           :filename="currentFilename"
           :initial-time="restoreTime"
+          :has-previous="hasPrevious"
+          :has-next="hasNext"
           @timeupdate="t => currentTime = t"
           @durationchange="d => duration = d"
           @ended="advanceQueue"
           @error="handlePlaybackError"
           @open-file="handleOpenVideo"
+          @previous="playPrevious"
+          @next="playNext"
         >
           <template #default="{ isFullscreen, controlsVisible }">
             <TranscriptFooter

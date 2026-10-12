@@ -1,9 +1,11 @@
 import json
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field, field_validator
+
+ThemeName = Literal["dark", "light"]
 
 
 class PlaybackQueueVideo(BaseModel):
@@ -40,6 +42,7 @@ class SubtitleDisplayPreferences(BaseModel):
 class AppSettings(BaseModel):
     playback_queue: PlaybackQueueState = Field(default_factory=PlaybackQueueState)
     subtitle_display_preferences: SubtitleDisplayPreferences = Field(default_factory=SubtitleDisplayPreferences)
+    theme: ThemeName = "dark"
     deepgram_api_key: str = ""
     assemblyai_api_key: str = ""
     deepl_api_key: str = ""
@@ -79,3 +82,27 @@ def save_settings(settings: AppSettings, path: Path | None = None) -> None:
     target = path if path is not None else _settings_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
+
+
+def merge_settings(data: dict[str, Any]) -> AppSettings:
+    """Build AppSettings from submitted data, keeping state the dialog does not own."""
+    stored = load_settings()
+    settings = AppSettings(**data)
+    settings.playback_queue = stored.playback_queue
+    settings.subtitle_display_preferences = stored.subtitle_display_preferences
+    settings.theme = stored.theme
+    return settings
+
+
+def load_theme() -> ThemeName:
+    """Return the persisted interface theme."""
+    return load_settings().theme
+
+
+def save_theme(theme: str) -> ThemeName:
+    """Persist an interface theme; an unknown value keeps the stored theme."""
+    settings = load_settings()
+    if theme in get_args(ThemeName):
+        settings.theme = theme
+        save_settings(settings)
+    return settings.theme

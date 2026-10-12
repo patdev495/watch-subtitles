@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import { FileVideo } from 'lucide-vue-next';
+import { FolderOpen, MonitorPlay } from 'lucide-vue-next';
 import PlayerControls from './PlayerControls.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   src?: string;
   filename?: string;
   initialTime?: number;
-}>();
+  hasPrevious?: boolean;
+  hasNext?: boolean;
+}>(), { hasPrevious: false, hasNext: false });
 
 const emit = defineEmits<{
   (e: 'timeupdate', time: number): void;
@@ -17,6 +19,8 @@ const emit = defineEmits<{
   (e: 'open-file'): void;
   (e: 'ended'): void;
   (e: 'error'): void;
+  (e: 'previous'): void;
+  (e: 'next'): void;
 }>();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
@@ -48,6 +52,8 @@ const formattedDuration = computed(() => formatTime(duration.value));
 const progressPercent = computed(() =>
   duration.value ? (currentTime.value / duration.value) * 100 : 0
 );
+/* The dock sits below the stage, so it only auto-hides once it overlays the video. */
+const dockHidden = computed(() => isFullscreen.value && !showControls.value);
 
 function togglePlay() {
   if (!videoRef.value || !props.src) return;
@@ -165,41 +171,41 @@ defineExpose({ seekTo });
     @touchstart.passive="handleMouseMove"
     @mouseleave="isPlaying && (showControls = false)"
   >
-    <!-- Viewport -->
-    <div class="viewport" @click="togglePlay">
-      <video
-        v-if="src"
-        ref="videoRef"
-        :src="src"
-        autoplay
-        class="video-core"
-        @timeupdate="handleTimeUpdate"
-        @loadedmetadata="handleLoadedMetadata"
-        @play="isPlaying = true; emit('play')"
-        @pause="isPlaying = false; emit('pause')"
-        @ended="emit('ended')"
-        @error="emit('error')"
-      />
+    <div class="player-stage">
+      <div class="viewport" @click="togglePlay">
+        <video
+          v-if="src"
+          ref="videoRef"
+          :src="src"
+          autoplay
+          class="video-core"
+          @timeupdate="handleTimeUpdate"
+          @loadedmetadata="handleLoadedMetadata"
+          @play="isPlaying = true; emit('play')"
+          @pause="isPlaying = false; emit('pause')"
+          @ended="emit('ended')"
+          @error="emit('error')"
+        />
 
-      <!-- Empty State -->
-      <div v-else class="empty-hero">
-        <div class="empty-content">
-          <FileVideo :size="18" :stroke-width="1.5" class="upload-icon" aria-hidden="true" />
-          <p class="hero-subtitle">Kéo &amp; Thả Video Vào Đây</p>
-          <button class="browse-btn" @click.stop="emit('open-file')">
-            <FileVideo :size="16" :stroke-width="1.5" aria-hidden="true" />
-            <span>Mở video</span>
-          </button>
+        <!-- Empty state -->
+        <div v-else class="empty-hero">
+          <div class="empty-content">
+            <span class="empty-icon" aria-hidden="true"><MonitorPlay :size="26" :stroke-width="1.5" /></span>
+            <p class="hero-title">Kéo &amp; Thả Video Vào Đây</p>
+            <p class="hero-subtitle">hoặc chọn một tệp từ máy của bạn</p>
+            <button class="browse-btn" @click.stop="emit('open-file')">
+              <FolderOpen :size="16" :stroke-width="2" aria-hidden="true" />
+              <span>Mở video</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      <slot :is-fullscreen="isFullscreen" :controls-visible="showControls || !isPlaying" />
     </div>
 
-    <!-- Floating Cinema Controls -->
-    <div
-      v-if="src"
-      class="controls-scrim"
-      :class="{ 'controls-visible': showControls || !isPlaying }"
-    >
+    <!-- Transport dock: below the stage, or overlaid on it in fullscreen -->
+    <div v-if="src" class="transport-dock" :class="{ 'dock-idle': dockHidden }">
       <PlayerControls
         :is-playing="isPlaying"
         :current-time="currentTime"
@@ -210,6 +216,8 @@ defineExpose({ seekTo });
         :progress-percent="progressPercent"
         :formatted-current-time="formattedCurrentTime"
         :formatted-duration="formattedDuration"
+        :has-previous="hasPrevious"
+        :has-next="hasNext"
         @toggle-play="togglePlay"
         @seek="onSeek"
         @seek-relative="seekRelative"
@@ -217,9 +225,10 @@ defineExpose({ seekTo });
         @volume-change="onVolumeChange"
         @playback-rate-change="changePlaybackRate"
         @fullscreen="toggleFullscreen"
+        @previous="emit('previous')"
+        @next="emit('next')"
       />
     </div>
-    <slot :is-fullscreen="isFullscreen" :controls-visible="showControls || !isPlaying" />
   </div>
 </template>
 
@@ -228,17 +237,35 @@ defineExpose({ seekTo });
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  background: var(--bg-player);
 }
 
 .player-card:fullscreen {
-  width: 100vw;
-  height: 100vh;
+  gap: 0;
+  background: var(--bg-player);
+}
+
+/* ── Stage ──────────────────────────────────────────────────────────────── */
+.player-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--bg-player);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-stage);
+}
+
+.player-card:fullscreen .player-stage {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .viewport {
@@ -258,49 +285,61 @@ defineExpose({ seekTo });
   object-fit: contain;
 }
 
+/* ── Empty state ────────────────────────────────────────────────────────── */
 .empty-hero {
   position: absolute;
-  inset: 0;
+  inset: var(--space-4);
   display: grid;
   place-items: center;
-  padding: var(--space-8);
-  background: var(--bg-base);
+  padding: var(--space-6);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-card);
+  background: linear-gradient(160deg, var(--bg-surface), var(--bg-base));
 }
 
 .empty-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
   text-align: center;
-  padding: var(--space-8) var(--space-10);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-panel);
 }
 
-.upload-icon {
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-panel);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.hero-title {
+  margin: 0;
   color: var(--text-primary);
+  font-size: var(--font-display);
+  font-weight: 600;
 }
 
 .hero-subtitle {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-file);
-  font-weight: 500;
+  color: var(--text-muted);
+  font-size: var(--font-body);
 }
 
 .browse-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: var(--control-height);
-  padding: 0 var(--space-4);
-  border: 1px solid #ffffff;
+  height: var(--control-height-lg);
+  margin-top: var(--space-4);
+  padding: 0 var(--space-5);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-control);
-  background: #ffffff;
-  color: #09090b;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
@@ -308,32 +347,31 @@ defineExpose({ seekTo });
 }
 
 .browse-btn:hover {
-  background: #e4e4e7;
-  border-color: #e4e4e7;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
-.browse-btn:active {
-  background: #d4d4d8;
+/* ── Transport dock ─────────────────────────────────────────────────────── */
+.transport-dock {
+  flex: 0 0 auto;
+  padding: 0 var(--space-1);
+  opacity: 1;
+  transition: opacity var(--transition-base), transform var(--transition-base);
 }
 
-.controls-scrim {
+.player-card:fullscreen .transport-dock {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 10;
-  padding: var(--space-8) var(--space-4) var(--space-4);
+  padding: var(--space-8) var(--space-5) var(--space-4);
   background: var(--player-scrim);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
-  pointer-events: none;
 }
 
-.controls-scrim.controls-visible,
-.controls-scrim:focus-within {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+.transport-dock.dock-idle {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
 }
 </style>

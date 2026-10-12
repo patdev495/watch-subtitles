@@ -2,7 +2,7 @@
 import { computed, reactive } from 'vue';
 import { SUPPORTED_LANGUAGES, SUPPORTED_SOURCE_LANGUAGES } from '../languages';
 import type { PlaybackVideo, SubtitleJob } from '../types';
-import { X } from 'lucide-vue-next';
+import { CheckCircle2, FileVideo, Sparkles, Subtitles, X, XCircle } from 'lucide-vue-next';
 
 const props = defineProps<{ open: boolean; videos: PlaybackVideo[]; jobs: SubtitleJob[]; defaultTargetLanguage: string; activePath?: string }>();
 const emit = defineEmits<{
@@ -40,6 +40,14 @@ function stateLabel(video: PlaybackVideo): string {
   if (hasCache(video) || job?.status === 'completed') return 'Đã có Subtitle Cache';
   return 'Sẵn sàng tạo';
 }
+function stateTone(video: PlaybackVideo): string {
+  const job = latestJob(video);
+  if (job?.status === 'waiting') return 'waiting';
+  if (job?.status === 'processing') return 'processing';
+  if (job?.status === 'failed') return 'failed';
+  if (hasCache(video) || job?.status === 'completed') return 'cached';
+  return 'ready';
+}
 const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache(video) && !activeJob(video)).map((video) => ({ video, ...pairFor(video), force: false })));
 </script>
 
@@ -47,25 +55,54 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   <div v-if="open" class="modal-backdrop" @click.self="emit('close')">
     <section class="generation-modal" role="dialog" aria-modal="true" aria-label="Tạo phụ đề">
       <header class="modal-header">
-        <div><h2>Phụ đề</h2><p>Chọn cặp ngôn ngữ cho từng Video. Job chạy nền sau khi đóng.</p></div>
-        <button class="close-button" aria-label="Đóng modal phụ đề" @click="emit('close')"><X :size="16" aria-hidden="true" /></button>
+        <div class="title-block">
+          <span class="title-icon" aria-hidden="true"><Subtitles :size="18" :stroke-width="1.75" /></span>
+          <div>
+            <h2>Phụ đề</h2>
+            <p>Chọn cặp ngôn ngữ cho từng Video. Job chạy nền sau khi đóng.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="modal-actions">
+            <button :disabled="eligibleRequests.length === 0" @click="emit('generate-all', eligibleRequests)">
+              <Sparkles :size="16" :stroke-width="2" aria-hidden="true" />
+              Tạo tất cả
+            </button>
+          </div>
+          <button class="close-button" aria-label="Đóng modal phụ đề" @click="emit('close')"><X :size="17" aria-hidden="true" /></button>
+        </div>
       </header>
-      <div class="modal-actions"><button :disabled="eligibleRequests.length === 0" @click="emit('generate-all', eligibleRequests)">Tạo tất cả</button></div>
+
       <p v-if="videos.length === 0" class="empty">Playback Queue chưa có Video.</p>
       <ol v-else class="modal-list">
         <li v-for="video in videos" :key="video.path" class="modal-row" :class="{ active: video.path === activePath }">
-          <strong>{{ video.filename }}</strong>
-          <div class="language-pair">
-            <label>Nguồn <select data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
-            <label>Đích <select data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+          <div class="row-head">
+            <span class="row-icon" aria-hidden="true"><FileVideo :size="16" :stroke-width="1.75" /></span>
+            <strong>{{ video.filename }}</strong>
+            <span class="job-state" :class="stateTone(video)">
+              <CheckCircle2 v-if="stateTone(video) === 'cached'" :size="13" aria-hidden="true" />
+              <XCircle v-else-if="stateTone(video) === 'failed'" :size="13" aria-hidden="true" />
+              <span v-else class="state-dot" aria-hidden="true"></span>
+              {{ stateLabel(video) }}
+            </span>
           </div>
+
+          <div class="row-controls">
+            <div class="language-pair">
+              <label>Nguồn <select data-test="source-language" :value="pairFor(video).source" @change="setLanguage(video, 'source', $event)"><option v-for="language in SUPPORTED_SOURCE_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+              <label>Đích <select data-test="target-language" :value="pairFor(video).target" @change="setLanguage(video, 'target', $event)"><option v-for="language in SUPPORTED_LANGUAGES" :key="language.code" :value="language.code">{{ language.name }}</option></select></label>
+            </div>
+            <div class="row-actions">
+              <button data-test="generate-video" :disabled="Boolean(activeJob(video))" @click="emit('generate', video, pairFor(video).source, pairFor(video).target, hasCache(video))">{{ hasCache(video) ? 'Tạo lại' : 'Tạo phụ đề' }}</button>
+              <button v-if="latestJob(video)?.status === 'failed'" data-test="retry-job" @click="emit('retry', latestJob(video)!.id)">Thử lại</button>
+            </div>
+          </div>
+
           <span class="availability" :class="{ 'has-cache': video.cachedPairs?.length }">{{ video.cachedPairs?.length ? `Subtitle Availability: ${video.cachedPairs.map(([source, target]) => `${source} → ${target}`).join(', ')}` : 'Chưa có phụ đề' }}</span>
-          <span class="job-state" :class="{ 'in-progress': activeJob(video), failed: latestJob(video)?.status === 'failed' }">{{ stateLabel(video) }}</span>
-          <p v-if="latestJob(video)?.error" class="job-error">{{ latestJob(video)?.error }}</p>
-          <div class="row-actions">
-            <button data-test="generate-video" :disabled="Boolean(activeJob(video))" @click="emit('generate', video, pairFor(video).source, pairFor(video).target, hasCache(video))">{{ hasCache(video) ? 'Tạo lại' : 'Tạo phụ đề' }}</button>
-            <button v-if="latestJob(video)?.status === 'failed'" data-test="retry-job" @click="emit('retry', latestJob(video)!.id)">Thử lại</button>
+          <div v-if="latestJob(video)?.status === 'processing'" class="row-progress" aria-hidden="true">
+            <span :style="{ width: `${Math.min(100, Math.max(0, latestJob(video)?.progress ?? 0))}%` }"></span>
           </div>
+          <p v-if="latestJob(video)?.error" class="job-error">{{ latestJob(video)?.error }}</p>
         </li>
       </ol>
     </section>
@@ -88,14 +125,15 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
 .generation-modal {
   width: min(var(--generation-width), 100%);
   max-height: min(var(--generation-height), 92vh);
-  overflow-y: auto;
-  padding: var(--space-6);
-  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
   box-shadow: var(--shadow-panel);
-  animation: scaleUp var(--transition-fast);
+  animation: scaleUp var(--transition-base);
 }
 
 @keyframes fadeIn {
@@ -108,47 +146,84 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ── Header ─────────────────────────────────────────────────────────────── */
 .modal-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: start;
   gap: var(--space-4);
-  padding-bottom: var(--space-3);
+  padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.title-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.title-icon {
+  padding: 7px;
+  box-sizing: content-box;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .modal-header h2 {
-  margin: 0 0 var(--space-1);
+  margin: 0 0 2px;
   font-size: var(--font-title);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .modal-header p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-body);
+  color: var(--text-muted);
+  font-size: var(--font-meta);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
 button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-1);
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  background: var(--bg-hover);
+  background: var(--bg-raised);
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
   transition: all var(--transition-fast);
 }
 
 button:hover:not(:disabled) {
-  background: var(--bg-selected);
+  background: var(--bg-hover);
   border-color: var(--border-strong);
+}
+
+.modal-actions button {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  padding: 0 var(--space-4);
+}
+
+.modal-actions button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .close-button {
@@ -164,57 +239,71 @@ button:hover:not(:disabled) {
   color: var(--text-primary);
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: var(--space-4) 0;
-}
-
-.modal-actions button {
-  background: #ffffff;
-  color: #09090b;
-  border: 1px solid #ffffff;
-  font-weight: 600;
-  padding: 0 var(--space-4);
-}
-
-.modal-actions button:hover:not(:disabled) {
-  background: #e4e4e7;
-  border-color: #e4e4e7;
-}
-
+/* ── Rows ───────────────────────────────────────────────────────────────── */
 .modal-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
   margin: 0;
-  padding: 0;
+  padding: var(--space-4) var(--space-6) var(--space-5);
+  overflow-y: auto;
   list-style: none;
 }
 
 .modal-row {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
   border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
-  transition: all var(--transition-fast);
-}
-
-.modal-row.active {
-  background: var(--bg-selected);
-  border-color: var(--border-strong);
+  background: var(--bg-raised);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .modal-row:hover {
-  background: var(--bg-hover);
   border-color: var(--border-strong);
 }
 
-.modal-row strong {
-  overflow-wrap: anywhere;
+.modal-row.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-soft);
+}
+
+.row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.row-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.row-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--font-file);
   font-weight: 600;
+}
+
+.row-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .language-pair,
@@ -229,8 +318,9 @@ button:hover:not(:disabled) {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: var(--font-meta);
+  font-weight: 500;
 }
 
 .language-pair select {
@@ -243,16 +333,64 @@ button:hover:not(:disabled) {
   color: var(--text-primary);
   font-size: var(--font-meta);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .language-pair select:focus-visible {
-  border-color: var(--border-focus);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* ── State chip ─────────────────────────────────────────────────────────── */
+.job-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.job-state.processing {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  background: var(--accent-soft);
+}
+
+.job-state.waiting {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 32%, transparent);
+  background: var(--warning-soft);
+}
+
+.job-state.cached {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 32%, transparent);
+  background: var(--success-soft);
+}
+
+.job-state.failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  background: var(--danger-soft);
+}
+
+/* ── Meta ───────────────────────────────────────────────────────────────── */
 .availability,
-.job-state,
-.job-error,
 .empty {
   font-size: var(--font-meta);
 }
@@ -266,24 +404,29 @@ button:hover:not(:disabled) {
   color: var(--success);
 }
 
-.job-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-secondary);
+.empty {
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
 }
 
-.job-state.in-progress {
-  color: var(--text-primary);
-  font-weight: 600;
+.row-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--bg-active);
 }
 
-.job-state.failed,
-.job-error {
-  color: var(--danger);
+.row-progress span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--transition-base);
 }
 
 .job-error {
   margin: 0;
+  color: var(--danger);
+  font-size: var(--font-meta);
 }
 </style>

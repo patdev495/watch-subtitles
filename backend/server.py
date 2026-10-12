@@ -8,6 +8,9 @@ from typing import Tuple, Optional
 import socket
 import threading
 
+from backend.fingerprint import compute_video_fingerprint
+from backend.thumbnails import generate_thumbnail
+
 DIST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
 
 
@@ -39,8 +42,37 @@ class VideoStreamHandler(BaseHTTPRequestHandler):
             self.handle_video_stream(parsed_url.query)
             return
 
+        # Handle cached Video poster frames
+        if parsed_url.path == "/thumbnail":
+            self.handle_thumbnail(parsed_url.query)
+            return
+
         # Serve static frontend dist files
         self.handle_static_file(parsed_url.path)
+
+    def handle_thumbnail(self, query: str) -> None:
+        video_path = (parse_qs(query).get("path") or [""])[0]
+        if not video_path or not os.path.isfile(video_path):
+            self.send_error(404, "Video not found")
+            return
+        try:
+            fingerprint = compute_video_fingerprint(video_path)
+            payload = generate_thumbnail(video_path, fingerprint).read_bytes()
+        except Exception:
+            self.send_error(404, "Thumbnail unavailable")
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(payload)))
+        # Keyed by Video Fingerprint, so the bytes never change for a given URL.
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        try:
+            self.wfile.write(payload)
+        except (ConnectionError, BrokenPipeError):
+            pass
 
     def handle_static_file(self, rel_path: str) -> None:
         if rel_path in ("/", ""):

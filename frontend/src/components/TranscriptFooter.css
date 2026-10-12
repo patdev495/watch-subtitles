@@ -1,3 +1,5 @@
+/* The caption overlay and its toolbar float on top of video, so they keep
+   fixed light-on-dark values in both themes; the cue drawer follows the theme. */
 .subtitle-overlay {
   position: absolute;
   inset: 0;
@@ -5,20 +7,22 @@
   pointer-events: none;
 }
 
+/* ── Toolbar ────────────────────────────────────────────────────────────── */
 .subtitle-toolbar {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
   display: flex;
-  gap: var(--space-1);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
+  gap: 2px;
   padding: 3px;
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-pill);
+  background: rgba(10, 13, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.9);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-4px);
+  transform: translateY(-6px);
   transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -34,33 +38,30 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: 28px;
+  height: 30px;
   padding: 0 var(--space-3);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
   font-size: var(--font-meta);
-  font-weight: 500;
-  transition: all var(--transition-fast);
+  font-weight: 600;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-.toolbar-button:hover,
-.icon-button:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-subtle);
-  color: var(--text-primary);
+.toolbar-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 .toolbar-button[aria-pressed='true'],
 .toolbar-button[aria-expanded='true'] {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #09090b;
-  font-weight: 600;
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
+/* ── Captions ───────────────────────────────────────────────────────────── */
 .caption-card {
   position: absolute;
   left: 50%;
@@ -68,12 +69,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   width: calc(80% - 30px);
   transform: translateX(-50%);
   color: #ffffff;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.45;
   text-align: center;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 1), 0 2px 12px rgba(0, 0, 0, 0.95), 0 4px 24px rgba(0, 0, 0, 0.8);
   pointer-events: auto;
@@ -91,11 +92,11 @@
 /* Keep this inline inside the flex item so each wrapped fragment gets its own background. */
 .caption-pill {
   display: inline;
-  background: rgba(20, 20, 24, var(--bg-opacity, 0.86));
-  backdrop-filter: var(--blur-glass);
-  padding: 3px 14px;
+  background: rgba(10, 13, 18, var(--bg-opacity, 0.86));
+  backdrop-filter: blur(12px);
+  padding: 4px 14px;
   border-radius: var(--radius-card);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   transition: border-color var(--transition-fast);
@@ -105,7 +106,8 @@
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-.subtitle-overlay.controls-visible .caption-card {
+/* Captions only need to clear the transport bar when it overlays the video. */
+.subtitle-overlay.fullscreen.controls-visible .caption-card {
   bottom: var(--caption-offset);
 }
 
@@ -121,6 +123,7 @@
 .caption-secondary {
   font-size: 0.82em;
   font-weight: 400;
+  opacity: 0.92;
   overflow-wrap: anywhere;
   user-select: text;
   -webkit-user-select: text;
@@ -132,6 +135,7 @@
   -webkit-user-select: text;
 }
 
+/* ── Cue drawer ─────────────────────────────────────────────────────────── */
 .cue-drawer {
   position: absolute;
   top: var(--drawer-top);
@@ -146,7 +150,7 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-panel);
   pointer-events: auto;
-  animation: slideIn var(--transition-fast);
+  animation: slideIn var(--transition-base);
 }
 
 @keyframes slideIn {
@@ -159,15 +163,14 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .drawer-header strong {
   font-size: var(--font-file);
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .icon-button {
@@ -177,26 +180,33 @@
   height: var(--control-height);
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
+.icon-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+/* ── Display mode segmented control ─────────────────────────────────────── */
 .display-mode {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  margin-bottom: var(--space-3);
+  gap: 3px;
+  margin-bottom: var(--space-4);
   background: var(--bg-field);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  padding: 2px;
+  padding: 3px;
 }
 
 .display-mode button {
-  height: 28px;
+  height: 30px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -212,11 +222,12 @@
 }
 
 .display-mode button.selected {
-  background: #ffffff;
-  color: #09090b;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-weight: 600;
 }
 
+/* ── Cue detail lines ───────────────────────────────────────────────────── */
 .detail-line {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -229,7 +240,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .detail-line p {
@@ -260,16 +271,21 @@
   font-style: italic;
 }
 
+/* ── Display settings ───────────────────────────────────────────────────── */
 .display-settings {
-  margin-top: var(--space-3);
+  margin-top: var(--space-4);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
 
 .display-settings > strong {
-  color: var(--text-primary);
-  font-size: var(--font-meta);
-  font-weight: 600;
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .setting-row {
@@ -290,9 +306,11 @@
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--text-muted);
+  text-align: right;
 }
 
-.color-setting {
+.color-setting,
+.opacity-setting {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -301,22 +319,24 @@
   font-size: var(--font-meta);
 }
 
-.color-setting label {
+.color-setting label,
+.opacity-setting label {
   flex: 1;
+  min-width: 0;
 }
 
 .color-setting input {
-  width: 36px;
+  width: 40px;
   height: 28px;
   padding: 2px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--bg-hover);
+  background: var(--bg-raised);
   cursor: pointer;
 }
 
 .color-setting output {
-  min-width: 64px;
+  min-width: 66px;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -324,17 +344,7 @@
 }
 
 .opacity-setting {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   margin-top: var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--font-meta);
-}
-
-.opacity-setting label {
-  flex: 0 0 auto;
-  min-width: var(--subtitle-label-width);
 }
 
 .opacity-setting input[type='range'] {
@@ -343,7 +353,7 @@
 }
 
 .opacity-setting output {
-  min-width: 36px;
+  min-width: 40px;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -351,6 +361,7 @@
   font-size: 11px;
 }
 
+/* ── Export ─────────────────────────────────────────────────────────────── */
 .export-row {
   display: grid;
   grid-template-columns: var(--export-format-width) 1fr var(--export-action-width);
@@ -365,7 +376,7 @@
   height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-sm);
   background: var(--bg-field);
   color: var(--text-primary);
   font-size: var(--font-meta);
@@ -382,10 +393,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  border: 1px solid #ffffff;
-  border-radius: var(--radius-control);
-  background: #ffffff;
-  color: #09090b;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: var(--font-meta);
   font-weight: 600;
   cursor: pointer;
@@ -393,8 +404,8 @@
 }
 
 .export-row button:hover:not(:disabled) {
-  background: #e4e4e7;
-  border-color: #e4e4e7;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .export-message {

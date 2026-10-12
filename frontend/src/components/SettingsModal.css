@@ -16,12 +16,12 @@
   width: var(--settings-width);
   max-width: 100%;
   max-height: 92vh;
-  overflow-y: auto;
-  border-radius: var(--radius-card);
+  overflow: hidden;
+  border-radius: var(--radius-panel);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-panel);
-  animation: scaleUp var(--transition-fast);
+  animation: scaleUp var(--transition-base);
 }
 
 @keyframes scaleUp {
@@ -29,31 +29,39 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ── Header ─────────────────────────────────────────────────────────────── */
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-6);
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .modal-title-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-.modal-title-icon,
+.modal-title-icon {
+  padding: 7px;
+  box-sizing: content-box;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .section-icon {
-  color: var(--text-primary);
+  color: var(--text-muted);
 }
 
 .modal-title {
   margin: 0;
   color: var(--text-primary);
   font-size: var(--font-title);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .icon-close {
@@ -62,7 +70,7 @@
   width: var(--control-height);
   height: var(--control-height);
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -75,11 +83,13 @@
   color: var(--text-primary);
 }
 
+/* ── Body ───────────────────────────────────────────────────────────────── */
 .modal-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-3);
   padding: var(--space-5) var(--space-6);
+  overflow-y: auto;
 }
 
 .save-error-banner {
@@ -88,8 +98,8 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-control);
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
   color: var(--danger);
   font-size: var(--font-body);
   font-weight: 500;
@@ -98,7 +108,11 @@
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
 }
 
 .section-label {
@@ -108,21 +122,21 @@
 }
 
 .section-title {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-weight: 600;
 }
 
 .section-badge {
-  padding: 1px 7px;
+  margin-left: auto;
+  padding: 2px 9px;
   border-radius: var(--radius-pill);
-  background: var(--bg-control);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 600;
+  text-transform: capitalize;
 }
 
 .field-row,
@@ -134,18 +148,19 @@
 .provider-note {
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-control);
-  background: var(--bg-hover);
+  background: var(--bg-field);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: var(--font-body);
+  font-size: var(--font-meta);
 }
 
 .field-input,
 .field-select {
   min-width: 0;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
@@ -153,12 +168,13 @@
   color: var(--text-primary);
   font-size: var(--font-body);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .field-input:focus,
 .field-select:focus-visible {
-  border-color: var(--border-focus);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .field-input {
@@ -178,20 +194,21 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-3);
+  min-height: 40px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  background: var(--bg-hover);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--transition-fast);
 }
 
 .btn-test:hover:not(:disabled) {
-  background: var(--bg-selected);
+  background: var(--bg-hover);
   border-color: var(--border-strong);
 }
 
@@ -199,7 +216,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
   font-size: var(--font-meta);
   font-weight: 500;
 }
@@ -212,6 +228,7 @@
   color: var(--danger);
 }
 
+/* ── Footer ─────────────────────────────────────────────────────────────── */
 .modal-footer {
   display: flex;
   align-items: center;
@@ -219,12 +236,13 @@
   gap: var(--space-3);
   padding: var(--space-4) var(--space-6);
   border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
 }
 
 .btn-cancel,
 .btn-save {
-  min-height: 36px;
-  padding: 0 var(--space-4);
+  min-height: 40px;
+  padding: 0 var(--space-5);
   border-radius: var(--radius-control);
   font-size: var(--font-body);
   font-weight: 600;
@@ -233,30 +251,31 @@
 }
 
 .btn-cancel {
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-secondary);
 }
 
 .btn-cancel:hover {
   background: var(--bg-hover);
-  border-color: var(--border-subtle);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
 .btn-save {
-  border: 1px solid #ffffff;
-  background: #ffffff;
-  color: #09090b;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #e4e4e7;
-  border-color: #e4e4e7;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn-save:active {
-  background: #d4d4d8;
+  background: var(--accent-active);
+  border-color: var(--accent-active);
 }
 
 .modal-fade-enter-active,

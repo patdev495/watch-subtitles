@@ -20,11 +20,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 button, input, select, textarea {
   font: inherit;
   color: inherit;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
 }
 
 svg.lucide {
@@ -41,39 +46,47 @@ button:disabled {
   cursor: not-allowed;
 }
 
-:where(button, input, select, [role='button']):focus-visible {
+:where(button, input, select, textarea, [role='button']):focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
 
-select {
-  color-scheme: dark;
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
 }
 
-/* ── Custom Range Slider Polish ─────────────────────────────────────────── */
+/* ── Native form controls follow the active theme ───────────────────────── */
+:root[data-theme='light'] select,
+:root[data-theme='light'] input[type='range'],
+:root[data-theme='light'] input[type='color'] {
+  color-scheme: light;
+}
+
+/* ── Range Slider Polish ────────────────────────────────────────────────── */
 input[type='range'] {
-  accent-color: var(--accent-primary);
+  accent-color: var(--accent);
 }
 
 input[type='range']::-webkit-slider-runnable-track {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
 }
 
 input[type='range']::-webkit-slider-thumb {
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: var(--accent);
   transition: transform var(--transition-fast), background-color var(--transition-fast);
 }
 
 input[type='range']:hover::-webkit-slider-thumb {
   background: var(--accent-hover);
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 
-/* ── Smooth Scrollbars ─────────────────────────────────────────────────── */
+/* ── Scrollbars ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -81,12 +94,15 @@ input[type='range']:hover::-webkit-slider-thumb {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  background-clip: content-box;
   border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--text-muted);
+  background-clip: content-box;
 }
 
 @media (prefers-reduced-motion: reduce) {
