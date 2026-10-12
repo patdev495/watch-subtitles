@@ -54,7 +54,7 @@ const displayMode = computed<DisplayMode>(() => {
 });
 const hasCaption = computed(() => lineSettings.original.visible || lineSettings.translated.visible);
 const captionCardStyle = computed(() => ({
-  background: `rgba(20, 20, 24, ${captionBgOpacity.value})`,
+  '--bg-opacity': String(captionBgOpacity.value),
 }));
 function snapshotPreferences(): SubtitleDisplayPreferences {
   return {
@@ -179,8 +179,8 @@ async function exportSubtitles(): Promise<void> {
     </div>
 
     <div v-if="subtitlesVisible && hasCaption" class="caption-card" :style="{ color: captionColor, ...captionCardStyle }" title="Nhấp để xem chi tiết phụ đề" role="button" tabindex="0" aria-label="Mở chi tiết phụ đề" @click="detailOpen = true" @keydown.enter="detailOpen = true" @keydown.space.prevent="detailOpen = true">
-      <span v-if="lineSettings[secondaryLine].visible" :style="lineStyle(secondaryLine)" class="caption-original" :class="lineSettings[primaryLine].visible ? 'caption-secondary' : 'caption-text'">{{ secondaryText }}</span>
-      <span v-if="lineSettings[primaryLine].visible" :style="lineStyle(primaryLine)" class="caption-text caption-translation">{{ primaryText }}</span>
+      <span v-if="lineSettings[secondaryLine].visible" :style="lineStyle(secondaryLine)" class="caption-line caption-original" :class="lineSettings[primaryLine].visible ? 'caption-secondary' : 'caption-text'"><span class="caption-pill">{{ secondaryText }}</span></span>
+      <span v-if="lineSettings[primaryLine].visible" :style="lineStyle(primaryLine)" class="caption-line caption-text caption-translation"><span class="caption-pill">{{ primaryText }}</span></span>
     </div>
 
     <aside v-if="detailOpen || settingsOpen" class="cue-drawer" :aria-label="detailOpen ? 'Chi tiết phụ đề hiện tại' : 'Chỉnh hiển thị phụ đề'">
