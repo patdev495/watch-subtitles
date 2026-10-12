@@ -75,8 +75,8 @@ const themeLabel = computed(() => (theme.value === 'dark' ? 'Chuyển giao diệ
   flex: 0 0 var(--header-height);
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-4);
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   user-select: none;
@@ -94,12 +94,12 @@ const themeLabel = computed(() => (theme.value === 'dark' ? 'Chuyển giao diệ
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
 }
 
 .brand-name {
@@ -129,8 +129,8 @@ const themeLabel = computed(() => (theme.value === 'dark' ? 'Chuyển giao diệ
 .media-icon-wrapper {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
   border: 1px solid var(--border-subtle);
@@ -151,8 +151,8 @@ const themeLabel = computed(() => (theme.value === 'dark' ? 'Chuyển giao diệ
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-primary);
-  font-size: var(--font-file);
-  font-weight: 600;
+  font-size: var(--font-body);
+  font-weight: 500;
 }
 
 .subtitle-status {
@@ -173,7 +173,6 @@ const themeLabel = computed(() => (theme.value === 'dark' ? 'Chuyển giao diệ
 
 .status-indicator-dot.has-subtitles {
   background: var(--success);
-  box-shadow: 0 0 0 3px var(--success-soft);
 }
 
 /* ── Actions ────────────────────────────────────────────────────────────── */
@@ -218,7 +217,6 @@ button {
   border-color: var(--accent);
   font-weight: 600;
   padding: 0 var(--space-4);
-  box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--accent) 90%, transparent);
 }
 
 .primary-button:hover {
@@ -266,7 +264,6 @@ button {
 
 .ready .status-dot {
   background: var(--success);
-  box-shadow: 0 0 0 3px var(--success-soft);
 }
 
 .status-icon {

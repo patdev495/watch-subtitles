@@ -100,7 +100,7 @@ describe('TranscriptFooter', () => {
     expect(wrapper.get('.detail-line--original').attributes('style')).toContain('display: none');
 
     await wrapper.get('input[aria-label="Cỡ chữ dòng Dịch"]').setValue('28');
-    expect(wrapper.get('.detail-line--translated p').attributes('style')).toContain('28px');
+    expect(wrapper.get('.caption-translation').attributes('style')).toContain('28px');
   });
 
   it('shows the original and translation when opening display settings from the toolbar', async () => {

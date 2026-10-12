@@ -118,8 +118,6 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   place-items: center;
   padding: var(--space-4);
   background: var(--bg-backdrop);
-  backdrop-filter: var(--blur-glass);
-  animation: fadeIn var(--transition-fast);
 }
 
 .generation-modal {
@@ -132,18 +130,7 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
-  box-shadow: var(--shadow-panel);
-  animation: scaleUp var(--transition-base);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleUp {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
+  box-shadow: var(--shadow-dropdown);
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
@@ -152,7 +139,7 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -167,8 +154,8 @@ const eligibleRequests = computed(() => props.videos.filter((video) => !hasCache
   padding: 7px;
   box-sizing: content-box;
   border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
 }
 
 .modal-header h2 {
@@ -243,9 +230,9 @@ button:hover:not(:disabled) {
 .modal-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 0;
   margin: 0;
-  padding: var(--space-4) var(--space-6) var(--space-5);
+  padding: 0 var(--space-4);
   overflow-y: auto;
   list-style: none;
 }
@@ -254,19 +241,19 @@ button:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-raised);
+  padding: var(--space-3) 0;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .modal-row:hover {
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
 }
 
 .modal-row.active {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
 

@@ -237,7 +237,7 @@ defineExpose({ seekTo });
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 0;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -256,10 +256,10 @@ defineExpose({ seekTo });
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: var(--radius-panel);
+  border-radius: 0;
   background: var(--bg-player);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-stage);
+  border: 0;
+  box-shadow: none;
 }
 
 .player-card:fullscreen .player-stage {
@@ -288,13 +288,13 @@ defineExpose({ seekTo });
 /* ── Empty state ────────────────────────────────────────────────────────── */
 .empty-hero {
   position: absolute;
-  inset: var(--space-4);
+  inset: 0;
   display: grid;
   place-items: center;
   padding: var(--space-6);
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--radius-card);
-  background: linear-gradient(160deg, var(--bg-surface), var(--bg-base));
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-surface);
 }
 
 .empty-content {
@@ -354,7 +354,9 @@ defineExpose({ seekTo });
 /* ── Transport dock ─────────────────────────────────────────────────────── */
 .transport-dock {
   flex: 0 0 auto;
-  padding: 0 var(--space-1);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   opacity: 1;
   transition: opacity var(--transition-base), transform var(--transition-base);
 }
@@ -366,6 +368,7 @@ defineExpose({ seekTo });
   left: 0;
   z-index: 10;
   padding: var(--space-8) var(--space-5) var(--space-4);
+  border: 0;
   background: var(--player-scrim);
 }
 

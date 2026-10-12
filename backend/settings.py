@@ -43,7 +43,7 @@ class SubtitleDisplayPreferences(BaseModel):
 class AppSettings(BaseModel):
     playback_queue: PlaybackQueueState = Field(default_factory=PlaybackQueueState)
     subtitle_display_preferences: SubtitleDisplayPreferences = Field(default_factory=SubtitleDisplayPreferences)
-    theme: ThemeName = "dark"
+    theme: ThemeName = "light"
     deepgram_api_key: str = ""
     assemblyai_api_key: str = ""
     deepl_api_key: str = ""

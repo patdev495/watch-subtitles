@@ -128,7 +128,7 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
 .transport {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   width: 100%;
   min-width: 0;
   user-select: none;
@@ -181,7 +181,6 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
   height: 14px;
   border-radius: 50%;
   background: var(--accent-hover);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
   transition: transform var(--transition-fast);
 }
 
@@ -220,9 +219,9 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .controls-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
   min-width: 0;
 }
@@ -234,7 +233,13 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
   min-width: 0;
 }
 
+.controls-group:first-child {
+  grid-column: 2;
+}
+
 .controls-right {
+  grid-column: 3;
+  justify-self: end;
   gap: var(--space-2);
 }
 
@@ -278,7 +283,6 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
   background: var(--accent-hover);
   border-color: var(--accent-hover);
   color: var(--accent-contrast);
-  transform: scale(1.04);
 }
 
 .play-icon-offset {
@@ -334,6 +338,11 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
 }
 
 @media (max-width: 900px) {
+  .controls-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
   .time-total {
     display: none;
   }

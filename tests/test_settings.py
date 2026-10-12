@@ -16,6 +16,7 @@ def test_load_settings_returns_defaults_when_missing():
         assert settings.default_target_language == "vi"
         assert settings.stt_provider == "deepgram"
         assert settings.translation_provider == "deepl"
+        assert settings.theme == "light"
 
 
 # ── Slice 2: save → load round-trip ────────────────────────────────────────────
@@ -34,6 +35,14 @@ def test_save_and_load_round_trip():
         assert loaded.deepgram_api_key == "dgk-test-123"
         assert loaded.deepl_api_key == "deepl-test-456"
         assert loaded.default_target_language == "en"
+
+
+def test_saved_dark_theme_is_preserved():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "settings.json"
+        save_settings(AppSettings(theme="dark"), path=path)
+
+        assert load_settings(path=path).theme == "dark"
 
 
 # ── Slice 3: corrupt file → defaults (no crash) ────────────────────────────────

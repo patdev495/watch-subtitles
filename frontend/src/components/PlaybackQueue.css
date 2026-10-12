@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -32,8 +32,7 @@ h2 {
   margin: 0;
   font-size: var(--font-meta);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--text-secondary);
 }
 
@@ -145,7 +144,7 @@ h2 {
   min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: var(--space-2);
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--row-gap);
@@ -155,33 +154,32 @@ li {
   position: relative;
   display: grid;
   grid-template-columns: var(--thumb-width) minmax(0, 1fr);
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2);
-  border-radius: var(--radius-card);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0;
   background: transparent;
-  border: 1px solid transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 li:hover {
   background: var(--bg-hover);
-  border-color: var(--border-subtle);
 }
 
 li.active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 li.active::before {
   content: '';
   position: absolute;
-  top: var(--space-3);
-  bottom: var(--space-3);
-  left: -1px;
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: var(--indicator-width);
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--accent);
 }
 
@@ -205,7 +203,7 @@ li.active::before {
   place-items: center;
   overflow: hidden;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--bg-raised), var(--bg-base));
+  background: var(--bg-raised);
   border: 1px solid var(--border-subtle);
 }
 
@@ -228,7 +226,6 @@ li.active::before {
   place-items: center;
   background: rgba(4, 8, 12, 0.55);
   color: #ffffff;
-  backdrop-filter: blur(2px);
 }
 
 li.active .queue-thumb {
@@ -340,7 +337,6 @@ li:focus-within .queue-remove {
   padding: 2px 7px 2px 5px;
   border-radius: var(--radius-pill);
   background: rgba(4, 8, 12, 0.74);
-  backdrop-filter: blur(6px);
   color: #ffffff;
   font-size: 10px;
   font-weight: 600;
@@ -385,7 +381,7 @@ li:focus-within .queue-remove {
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .queue-footer {
   flex: 0 0 auto;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
 
