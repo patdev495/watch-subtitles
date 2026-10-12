@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Sparkles } from 'lucide-vue-next';
 import HeaderBar from './components/HeaderBar.vue';
 import VideoPlayer from './components/VideoPlayer.vue';
@@ -11,8 +11,9 @@ import { useSubtitleQueue } from './composables/useSubtitleQueue';
 import { useTheme } from './composables/useTheme';
 import { useQueueNavigation } from './composables/useQueueNavigation';
 import { useSubtitleDisplayPreferences } from './composables/useSubtitleDisplayPreferences';
+import { usePlaybackQueuePersistence } from './composables/usePlaybackQueuePersistence';
 import { getMockCues } from './fixtures/mockCues';
-import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob, PlaybackVideo, PlaybackQueueState } from './types';
+import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob, PlaybackVideo } from './types';
 // ── Video state ──────────────────────────────────────────────────────────────
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
@@ -25,9 +26,8 @@ const duration = ref<number>(0);
 const autoAdvance = ref(true);
 const restored = ref(false);
 const restoreTime = ref(0);
-let persistTimer: ReturnType<typeof setTimeout> | undefined;
-let persistPending: Promise<void> = Promise.resolve();
 let subtitleLoadToken = 0;
+let videoOpenToken = 0;
 // ── Pipeline & Subtitle state ────────────────────────────────────────────────
 const sourceLanguage = ref<string>('en');
 const targetLanguage = ref<string>('vi');
@@ -84,31 +84,7 @@ async function loadSettings(): Promise<void> {
 }
 
 const { hasPrevious, hasNext, playNext, playPrevious } = useQueueNavigation(queuedVideos, currentFilePath, selectQueueVideo);
-
-function queueState(): PlaybackQueueState {
-  return {
-    videos: queuedVideos.value.map((video) => ({ path: video.path, source_language: video.sourceLanguage ?? 'en' })),
-    selected_path: currentFilePath.value,
-    playback_time: currentTime.value,
-    auto_advance: autoAdvance.value,
-  };
-}
-
-function saveQueue(): void {
-  const api = window.pywebview?.api;
-  if (!restored.value || !api?.save_playback_queue) return;
-  const snapshot = queueState();
-  persistPending = persistPending.then(async () => { await api.save_playback_queue(snapshot); }).catch((error: unknown) => { console.error('Failed to save Playback Queue:', error); });
-}
-
-function savePlaybackTime(): void {
-  if (!restored.value || !window.pywebview?.api?.save_playback_queue) return;
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(saveQueue, 250);
-}
-
-watch([queuedVideos, currentFilePath, autoAdvance], saveQueue, { deep: true });
-watch(currentTime, savePlaybackTime);
+usePlaybackQueuePersistence(queuedVideos, currentFilePath, currentTime, autoAdvance, restored);
 
 async function restoreQueue(): Promise<void> {
   const api = window.pywebview?.api;
@@ -119,11 +95,12 @@ async function restoreQueue(): Promise<void> {
     autoAdvance.value = state.auto_advance;
     for (const video of state.videos) {
       const cached = await api.get_cached_subtitle_languages(video.path);
-      queuedVideos.value.push({ path: video.path, filename: video.path.split(/[/\\]/).pop() ?? video.path, sourceLanguage: video.source_language, cachedPairs: cached.ok ? cached.language_pairs : [] });
+      queuedVideos.value.push({ path: video.path, filename: video.path.split(/[/\\]/).pop() ?? video.path, sourceLanguage: video.source_language, targetLanguage: video.target_language ?? undefined, cachedPairs: cached.ok ? cached.language_pairs : [] });
     }
     if (state.selected_path) {
       restoreTime.value = state.playback_time;
-      await handleOpenVideo(state.selected_path, queuedVideos.value.find((video) => video.path === state.selected_path)?.sourceLanguage, undefined, state.playback_time);
+      const selected = queuedVideos.value.find((video) => video.path === state.selected_path);
+      await handleOpenVideo(state.selected_path, selected?.sourceLanguage, selected?.targetLanguage, state.playback_time);
     }
   } catch (error) { console.error('Failed to restore Playback Queue:', error); }
   finally { restored.value = true; }
@@ -167,6 +144,7 @@ async function checkBackendBridge(): Promise<void> {
 async function loadSubtitlesForVideo(filePath: string, source: string, target: string): Promise<void> {
   const token = ++subtitleLoadToken;
   hasSubtitles.value = false;
+  cues.value = [];
   if (window.pywebview?.api && filePath) {
     try {
       const res = await window.pywebview.api.get_cached_subtitles(filePath, source, target);
@@ -179,6 +157,7 @@ async function loadSubtitlesForVideo(filePath: string, source: string, target: s
     } catch (err) {
       console.warn('Error reading subtitle cache:', err);
     }
+    if (token !== subtitleLoadToken) return;
     cues.value = [];
     return;
   }
@@ -188,7 +167,7 @@ async function loadSubtitlesForVideo(filePath: string, source: string, target: s
 async function handleSourceLanguageChange(language: string): Promise<void> {
   sourceLanguage.value = language;
   const video = queuedVideos.value.find((item) => item.path === currentFilePath.value);
-  if (video) video.sourceLanguage = language;
+  if (video) { video.sourceLanguage = language; video.targetLanguage = targetLanguage.value; }
   if (currentFilePath.value) {
     await loadSubtitlesForVideo(currentFilePath.value, language, targetLanguage.value);
   }
@@ -212,32 +191,44 @@ async function handleOpenVideo(videoPath?: string, source?: string, target?: str
   }
 
   try {
+    const openToken = ++videoOpenToken;
     const res: VideoDialogResponse = videoPath ? await window.pywebview.api.load_video_path(videoPath) : await window.pywebview.api.open_video_dialog();
+    if (openToken !== videoOpenToken) return;
     if (!res.cancelled && res.stream_url && res.filename) {
       restoreTime.value = resumeAt;
       currentTime.value = resumeAt;
-      if (source) sourceLanguage.value = source;
-      if (target) targetLanguage.value = target;
       videoSrc.value = res.stream_url;
       currentFilename.value = res.filename;
       currentFilePath.value = res.path || '';
       const existing = queuedVideos.value.find((video) => video.path === currentFilePath.value);
       if (!existing && currentFilePath.value) {
         const cached = await window.pywebview.api.get_cached_subtitle_languages?.(currentFilePath.value);
-        queuedVideos.value.push({ path: currentFilePath.value, filename: res.filename, sourceLanguage: source ?? sourceLanguage.value, cachedPairs: cached?.ok ? cached.language_pairs : [] });
+        if (openToken !== videoOpenToken) return;
+        queuedVideos.value.push({ path: currentFilePath.value, filename: res.filename, sourceLanguage: source ?? sourceLanguage.value, targetLanguage: target, cachedPairs: cached?.ok ? cached.language_pairs : [] });
       }
       if (existing) {
         existing.error = undefined;
-        if (source) existing.sourceLanguage = source;
-        sourceLanguage.value = existing.sourceLanguage ?? sourceLanguage.value;
       }
-      if (window.pywebview.api.get_latest_cached_subtitles) {
+      const selectedSource = source ?? existing?.sourceLanguage;
+      const selectedTarget = target ?? existing?.targetLanguage;
+      if (selectedSource && selectedTarget) {
+        sourceLanguage.value = selectedSource;
+        targetLanguage.value = selectedTarget;
+        await loadSubtitlesForVideo(currentFilePath.value, selectedSource, selectedTarget);
+      } else if (window.pywebview.api.get_latest_cached_subtitles) {
         const latest = await window.pywebview.api.get_latest_cached_subtitles(currentFilePath.value);
-        sourceLanguage.value = latest.cached && latest.source_language ? latest.source_language : sourceLanguage.value;
-        targetLanguage.value = latest.cached && latest.target_language ? latest.target_language : targetLanguage.value;
+        if (openToken !== videoOpenToken) return;
+        sourceLanguage.value = latest.cached && latest.source_language ? latest.source_language : selectedSource ?? sourceLanguage.value;
+        targetLanguage.value = latest.cached && latest.target_language ? latest.target_language : selectedTarget ?? targetLanguage.value;
         cues.value = latest.cached ? latest.cues : [];
         hasSubtitles.value = cues.value.length > 0;
+        const video = queuedVideos.value.find((item) => item.path === currentFilePath.value);
+        if (video && latest.cached) {
+          video.sourceLanguage = sourceLanguage.value;
+          video.targetLanguage = targetLanguage.value;
+        }
       } else {
+        if (selectedSource) sourceLanguage.value = selectedSource;
         await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, targetLanguage.value);
       }
     }
@@ -272,7 +263,20 @@ async function importQueue(kind: 'files' | 'folder'): Promise<void> {
 
 async function selectQueueVideo(video: PlaybackVideo): Promise<void> {
   restoreTime.value = 0;
-  await handleOpenVideo(video.path, video.sourceLanguage);
+  await handleOpenVideo(video.path, video.sourceLanguage, video.targetLanguage);
+}
+
+async function selectSubtitlePair(video: PlaybackVideo, source: string, target: string): Promise<void> {
+  video.sourceLanguage = source;
+  video.targetLanguage = target;
+  if (video.path === currentFilePath.value) {
+    ++videoOpenToken;
+    sourceLanguage.value = source;
+    targetLanguage.value = target;
+    await loadSubtitlesForVideo(video.path, source, target);
+  } else {
+    await handleOpenVideo(video.path, source, target);
+  }
 }
 
 async function removePlaybackVideo(video: PlaybackVideo): Promise<void> {
@@ -416,6 +420,7 @@ onMounted(() => {
         @add-files="importQueue('files')"
         @add-folder="importQueue('folder')"
         @select="selectQueueVideo"
+        @select-pair="selectSubtitlePair"
         @remove="removePlaybackVideo"
         @clear="clearPlaybackQueue"
         @update:auto-advance="autoAdvance = $event"

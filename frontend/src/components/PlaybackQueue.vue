@@ -12,6 +12,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   (event: 'select', video: PlaybackVideo): void;
+  (event: 'select-pair', video: PlaybackVideo, source: string, target: string): void;
   (event: 'remove', video: PlaybackVideo): void;
   (event: 'clear'): void;
   (event: 'add-files'): void;
@@ -71,12 +72,7 @@ function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined 
         :data-test="video.path === activePath ? 'queue-row-active' : 'queue-row'"
         :class="{ active: video.path === activePath, failed: Boolean(video.error) }"
       >
-        <button
-          class="queue-select"
-          :data-test="`queue-select-${video.filename.charAt(0)}`"
-          :title="video.filename"
-          @click="emit('select', video)"
-        >
+        <button class="queue-select" :aria-label="`Phát ${video.filename}`" @click="emit('select', video)">
           <span class="queue-thumb">
             <img
               v-if="thumbnailUrl(video.path)"
@@ -106,23 +102,30 @@ function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined 
               aria-hidden="true"
             ></span>
           </span>
-          <span class="row-body">
-            <span class="filename">{{ video.filename }}</span>
-            <span class="row-meta">
-              <template v-if="video.cachedPairs?.length">
-                <span
-                  v-for="([source, target], index) in video.cachedPairs"
-                  :key="`${source}-${target}-${index}`"
-                  class="language-badge"
-                >
-                  {{ source.toUpperCase() }}→{{ target.toUpperCase() }}
-                </span>
-              </template>
-              <span v-else class="no-subtitles">Chưa có phụ đề</span>
-              <span v-if="video.error" class="row-error" :title="video.error" aria-label="Lỗi video">Lỗi</span>
-            </span>
-          </span>
         </button>
+        <span class="row-body">
+          <button
+            class="filename"
+            :data-test="`queue-select-${video.filename.charAt(0)}`"
+            :title="video.filename"
+            @click="emit('select', video)"
+          >{{ video.filename }}</button>
+          <span class="row-meta">
+            <template v-if="video.cachedPairs?.length">
+              <button
+                v-for="([source, target], index) in video.cachedPairs"
+                :key="`${source}-${target}-${index}`"
+                class="language-badge"
+                :class="{ selected: video.sourceLanguage === source && video.targetLanguage === target }"
+                :aria-label="`Hiển thị phụ đề ${source.toUpperCase()} sang ${target.toUpperCase()} cho ${video.filename}`"
+                :aria-pressed="video.sourceLanguage === source && video.targetLanguage === target"
+                @click="emit('select-pair', video, source, target)"
+              >{{ source.toUpperCase() }}→{{ target.toUpperCase() }}</button>
+            </template>
+            <span v-else class="no-subtitles">Chưa có phụ đề</span>
+            <span v-if="video.error" class="row-error" :title="video.error" aria-label="Lỗi video">Lỗi</span>
+          </span>
+        </span>
         <button
           class="queue-remove"
           :data-test="`queue-remove-${video.filename.charAt(0)}`"

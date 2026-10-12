@@ -17,12 +17,13 @@ export interface PlaybackVideo {
   path: string;
   filename: string;
   sourceLanguage?: string;
+  targetLanguage?: string;
   cachedPairs?: [string, string][];
   error?: string;
 }
 
 export interface PlaybackQueueState {
-  videos: { path: string; source_language: string }[];
+  videos: { path: string; source_language: string; target_language?: string | null }[];
   selected_path: string;
   playback_time: number;
   auto_advance: boolean;

@@ -65,7 +65,7 @@
   --control-height: 34px;
   --control-height-lg: 44px;
   --header-height: 56px;
-  --sidebar-width: 340px;
+  --sidebar-width: clamp(264px, 28vw, 320px);
   --thumb-width: 104px;
   --thumb-height: 58px;
 

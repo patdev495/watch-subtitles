@@ -38,7 +38,7 @@ def test_playback_queue_round_trips_and_omits_missing_paths(tmp_path: Path, monk
     missing = tmp_path / "gone.mp4"
     state = {
         "videos": [
-            {"path": str(playable), "source_language": "ja"},
+            {"path": str(playable), "source_language": "ja", "target_language": "vi"},
             {"path": str(missing), "source_language": "en"},
         ],
         "selected_path": str(playable), "playback_time": 42.5, "auto_advance": False,
@@ -49,7 +49,7 @@ def test_playback_queue_round_trips_and_omits_missing_paths(tmp_path: Path, monk
 
     restored = BridgeApi(port=8999).get_playback_queue()
     assert restored == {
-        "videos": [{"path": str(playable), "source_language": "ja"}],
+        "videos": [{"path": str(playable), "source_language": "ja", "target_language": "vi"}],
         "selected_path": str(playable), "playback_time": 42.5, "auto_advance": False,
     }
     assert load_settings().playback_queue.auto_advance is False

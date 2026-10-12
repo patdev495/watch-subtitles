@@ -11,6 +11,7 @@ ThemeName = Literal["dark", "light"]
 class PlaybackQueueVideo(BaseModel):
     path: str
     source_language: str = "en"
+    target_language: str | None = None
 
 
 class PlaybackQueueState(BaseModel):

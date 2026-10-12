@@ -126,11 +126,11 @@ describe('App', () => {
     expect(wrapper.findAll('.playback-queue li')).toHaveLength(1);
     wrapper.unmount();
   });
-  it('restores selected video, playback time, source language, and auto-advance choice', async () => {
+  it('restores selected video, playback time, subtitle pair, and auto-advance choice', async () => {
     const api = {
       ping: vi.fn().mockResolvedValue({ status: 'ok', message: 'ready' }),
       list_subtitle_jobs: vi.fn().mockResolvedValue({ ok: true, jobs: [] }),
-      get_playback_queue: vi.fn().mockResolvedValue({ videos: [{ path: '/videos/a.mp4', source_language: 'zh-CN' }], selected_path: '/videos/a.mp4', playback_time: 31, auto_advance: false }),
+      get_playback_queue: vi.fn().mockResolvedValue({ videos: [{ path: '/videos/a.mp4', source_language: 'zh-CN', target_language: 'en' }], selected_path: '/videos/a.mp4', playback_time: 31, auto_advance: false }),
       load_video_path: vi.fn().mockResolvedValue({ cancelled: false, path: '/videos/a.mp4', filename: 'a.mp4', stream_url: 'http://localhost/a' }),
       get_cached_subtitle_languages: vi.fn().mockResolvedValue({ ok: true, language_pairs: [] }),
       get_cached_subtitles: vi.fn().mockResolvedValue({ ok: true, cached: false, cues: [] }),
@@ -142,6 +142,7 @@ describe('App', () => {
     expect(wrapper.get('[data-test="queue-row-active"]').text()).toContain('a.mp4');
     await wrapper.get('button[aria-label="Phụ đề"]').trigger('click');
     expect((wrapper.get('[data-test="source-language"]').element as HTMLSelectElement).value).toBe('zh-CN');
+    expect(api.get_cached_subtitles).toHaveBeenCalledWith('/videos/a.mp4', 'zh-CN', 'en');
     expect((wrapper.get('.auto-advance input').element as HTMLInputElement).checked).toBe(false);
     expect(wrapper.findComponent(VideoPlayer).props('initialTime')).toBe(31);
   });
@@ -181,6 +182,38 @@ describe('App', () => {
     await flushPromises();
     expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual(cues);
     expect(wrapper.findComponent(TranscriptFooter).props('sourceLanguage')).toBe('zh-CN');
+  });
+  it('switches cached subtitle pairs and keeps the selected pair for that video', async () => {
+    const viCues = [{ id: 'vi', start: 0, end: 2, originalText: 'Hello', translatedText: 'Xin chào' }];
+    const zhCues = [{ id: 'zh', start: 0, end: 2, originalText: 'Hello', translatedText: '你好' }];
+    const video = { cancelled: false, path: '/videos/a.mp4', filename: 'a.mp4', stream_url: 'http://localhost/a' };
+    const api = {
+      ping: vi.fn().mockResolvedValue({ status: 'ok' }),
+      list_subtitle_jobs: vi.fn().mockResolvedValue({ ok: true, jobs: [] }),
+      get_playback_queue: vi.fn().mockResolvedValue({ videos: [], selected_path: '', playback_time: 0, auto_advance: true }),
+      open_video_dialog: vi.fn().mockResolvedValue(video),
+      load_video_path: vi.fn().mockResolvedValue(video),
+      get_cached_subtitle_languages: vi.fn().mockResolvedValue({ ok: true, language_pairs: [['en', 'vi'], ['en', 'zh-CN']] }),
+      get_latest_cached_subtitles: vi.fn().mockResolvedValue({ ok: true, cached: true, source_language: 'en', target_language: 'vi', cues: viCues }),
+      get_cached_subtitles: vi.fn().mockImplementation(async (_path: string, _source: string, target: string) => ({ ok: true, cached: true, cues: target === 'zh-CN' ? zhCues : viCues })),
+      save_playback_queue: vi.fn().mockResolvedValue({}),
+    } as unknown as PyWebViewApi;
+    window.pywebview = { api };
+    const wrapper = mount(App, { global: { stubs: { VideoPlayer: { template: '<div><slot :is-fullscreen="false" :controls-visible="true" /></div>' } } } });
+    await flushPromises();
+    await wrapper.get('button.open-button').trigger('click');
+    await flushPromises();
+    await wrapper.get('button[aria-label="Hiển thị phụ đề EN sang ZH-CN cho a.mp4"]').trigger('click');
+    await flushPromises();
+    expect(api.get_cached_subtitles).toHaveBeenCalledWith('/videos/a.mp4', 'en', 'zh-CN');
+    expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual(zhCues);
+    expect(wrapper.get('button[aria-label="Hiển thị phụ đề EN sang ZH-CN cho a.mp4"]').attributes('aria-pressed')).toBe('true');
+    expect(api.save_playback_queue).toHaveBeenLastCalledWith(expect.objectContaining({ videos: [{ path: '/videos/a.mp4', source_language: 'en', target_language: 'zh-CN' }] }));
+    await wrapper.get('[data-test="queue-select-a"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual(zhCues);
+    expect(api.get_latest_cached_subtitles).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
   });
   it('keeps queue beside player and selects next video after removing active video', async () => {
     const video = (name: string) => ({ cancelled: false, path: `/videos/${name}.mp4`, filename: `${name}.mp4`, stream_url: `http://localhost/${name}` });
