@@ -195,7 +195,7 @@ async function exportSubtitles(): Promise<void> {
       </div>
       <div v-for="line in detailOpen ? detailLines : []" :key="line.key" v-show="lineSettings[line.key].visible" class="detail-line" :class="`detail-line--${line.key}`">
         <span>{{ line.label }}</span>
-        <p class="selectable-detail-text" :style="lineStyle(line.key)" @pointerdown.stop @mousedown.stop>{{ line.text }}</p>
+        <p class="selectable-detail-text" @pointerdown.stop @mousedown.stop>{{ line.text }}</p>
       </div>
       <div v-if="settingsOpen" class="display-settings">
         <strong>Hiển thị, cỡ chữ &amp; màu chữ</strong>
