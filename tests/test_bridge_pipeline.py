@@ -1,21 +1,23 @@
-import json
-import tempfile
-import time
+"""Exercise the real pipeline through the Subtitle Job interface."""
+
 from pathlib import Path
+from time import sleep
+from typing import Any, Sequence
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from backend.bridge import BridgeApi
 from backend.cache import SubtitleCache
-from backend.settings import AppSettings
 from backend.providers.base import CueResult, STTProvider, TranslationProvider
-from backend.providers import register_stt_provider, register_translation_provider
+from backend.settings import AppSettings
 
 
 class MockSTT(STTProvider):
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key: str = "") -> None:
         self.api_key = api_key
 
-    def transcribe(self, audio_path: str, language: str = ""):
+    def transcribe(self, audio_path: str, language: str = "") -> Sequence[CueResult]:
         return [CueResult(id="1", start=1.0, end=3.0, original_text="Hello")]
 
     def validate_key(self, api_key: str) -> bool:
@@ -23,10 +25,10 @@ class MockSTT(STTProvider):
 
 
 class MockTrans(TranslationProvider):
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key: str = "") -> None:
         self.api_key = api_key
 
-    def translate(self, texts, source_language: str, target_language: str):
+    def translate(self, texts: Sequence[str], source_language: str, target_language: str) -> Sequence[str]:
         return ["Xin chào"]
 
     def validate_key(self, api_key: str) -> bool:
@@ -41,81 +43,77 @@ class KeyRecordingSTT(MockSTT):
         self.received_keys.append(api_key)
 
 
-def test_bridge_start_pipeline_missing_keys():
-    with tempfile.TemporaryDirectory() as tmp:
-        video_path = Path(tmp) / "video.mp4"
-        video_path.write_bytes(b"dummy")
-        bridge = BridgeApi(port=8080)
-        with patch("backend.bridge.load_settings", return_value=AppSettings(deepgram_api_key="", deepl_api_key="")):
-            res = bridge.start_subtitles_pipeline(str(video_path), "en", "vi")
-            assert res["ok"] is False
-            assert "API key" in res["error"]
+def _wait_for_job(bridge: BridgeApi, job_id: str) -> dict[str, Any]:
+    for _ in range(100):
+        result = bridge.get_subtitle_job(job_id)
+        job = result["job"]
+        if job["status"] in {"completed", "failed"}:
+            return job
+        sleep(0.01)
+    pytest.fail(f"Subtitle Job {job_id} did not finish")
 
 
-def test_bridge_start_pipeline_background_execution():
-    register_translation_provider("test_trans", MockTrans)
+def test_subtitle_job_reports_missing_keys(tmp_path: Path) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"dummy")
+    bridge = BridgeApi(port=8080, cache=SubtitleCache(tmp_path / "cache.db"))
 
-    with tempfile.TemporaryDirectory() as tmp:
-        video_path = Path(tmp) / "video.mp4"
-        video_path.write_bytes(b"dummy video" * 100)
+    with patch("backend.bridge.load_settings", return_value=AppSettings(deepgram_api_key="", deepl_api_key="")):
+        response = bridge.create_subtitle_job(str(video), "en", "vi")
+        job = _wait_for_job(bridge, response["job"]["id"])
 
-        cache = SubtitleCache(db_path=Path(tmp) / "cache.db")
-        mock_window = MagicMock()
-        bridge = BridgeApi(port=8080, cache=cache)
-        bridge.set_window(mock_window)
-
-        settings = AppSettings(
-            assemblyai_api_key="aai-key",
-            deepl_api_key="dl-key",
-            stt_provider="assemblyai",
-            translation_provider="test_trans",
-        )
-
-        dummy_audio = Path(tmp) / "audio.wav"
-        dummy_audio.write_bytes(b"dummy wav")
-
-        with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": MockSTT}), \
-             patch("backend.bridge.load_settings", return_value=settings), \
-             patch("backend.pipeline.extract_audio", return_value=dummy_audio):
-            start_res = bridge.start_subtitles_pipeline(str(video_path), "en", "vi")
-            assert start_res["ok"] is True
-
-            # Wait briefly for background thread to complete
-            for _ in range(50):
-                status = bridge.get_pipeline_status()
-                if status.get("status") in ("completed", "error"):
-                    break
-                time.sleep(0.05)
-
-            final_status = bridge.get_pipeline_status()
-            assert final_status["status"] == "completed"
-            assert final_status["progress"] == 100.0
-            assert len(final_status["cues"]) == 1
-            assert final_status["cues"][0]["translatedText"] == "Xin chào"
-
-            # Check that evaluate_js was invoked with progress
-            assert mock_window.evaluate_js.called
+    assert response["ok"] is True
+    assert job["status"] == "failed"
+    assert "API key" in job["error"]
 
 
-def test_bridge_uses_assemblyai_credential_for_selected_stt_provider():
+def test_subtitle_job_runs_pipeline_and_emits_progress(tmp_path: Path) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"dummy video" * 100)
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"dummy wav")
+    window = MagicMock()
+    bridge = BridgeApi(port=8080, cache=SubtitleCache(tmp_path / "cache.db"))
+    bridge.set_window(window)
+    settings = AppSettings(
+        assemblyai_api_key="aai-key",
+        stt_provider="assemblyai",
+        translation_provider="test-trans",
+    )
+
+    with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": MockSTT}), \
+         patch.dict("backend.bridge.TRANSLATION_PROVIDERS", {"test-trans": MockTrans}), \
+         patch("backend.bridge.load_settings", return_value=settings), \
+         patch("backend.pipeline.extract_audio", return_value=audio):
+        response = bridge.create_subtitle_job(str(video), "en", "vi")
+        job = _wait_for_job(bridge, response["job"]["id"])
+
+    assert response["ok"] is True
+    assert job["status"] == "completed"
+    assert job["progress"] == 100.0
+    assert job["cues"][0]["translatedText"] == "Xin chào"
+    assert any("subtitle-job-progress" in call.args[0] for call in window.evaluate_js.call_args_list)
+
+
+def test_subtitle_job_uses_selected_stt_credential(tmp_path: Path) -> None:
     KeyRecordingSTT.received_keys.clear()
-    with tempfile.TemporaryDirectory() as tmp:
-        video_path = Path(tmp) / "video.mp4"
-        video_path.write_bytes(b"dummy video" * 100)
-        audio_path = Path(tmp) / "audio.wav"
-        audio_path.write_bytes(b"dummy wav")
-        bridge = BridgeApi(port=8080, cache=SubtitleCache(db_path=Path(tmp) / "cache.db"))
-        settings = AppSettings(
-            assemblyai_api_key="aai-key",
-            stt_provider="assemblyai",
-            translation_provider="test-trans",
-        )
-        register_translation_provider("test-trans", MockTrans)
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"dummy video" * 100)
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"dummy wav")
+    bridge = BridgeApi(port=8080, cache=SubtitleCache(tmp_path / "cache.db"))
+    settings = AppSettings(
+        assemblyai_api_key="aai-key",
+        stt_provider="assemblyai",
+        translation_provider="test-trans",
+    )
 
-        with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": KeyRecordingSTT}), patch(
-            "backend.bridge.load_settings", return_value=settings
-        ), patch("backend.bridge.threading.Thread"):
-            result = bridge.start_subtitles_pipeline(str(video_path), "en", "vi")
+    with patch.dict("backend.bridge.STT_PROVIDERS", {"assemblyai": KeyRecordingSTT}), \
+         patch.dict("backend.bridge.TRANSLATION_PROVIDERS", {"test-trans": MockTrans}), \
+         patch("backend.bridge.load_settings", return_value=settings), \
+         patch("backend.pipeline.extract_audio", return_value=audio):
+        response = bridge.create_subtitle_job(str(video), "en", "vi")
+        job = _wait_for_job(bridge, response["job"]["id"])
 
-            assert result["ok"] is True
-            assert KeyRecordingSTT.received_keys == ["aai-key"]
+    assert job["status"] == "completed"
+    assert KeyRecordingSTT.received_keys == ["aai-key"]

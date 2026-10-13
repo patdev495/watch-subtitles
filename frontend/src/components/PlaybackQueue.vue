@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import type { PlaybackVideo, SubtitleJob } from '../types';
-import { Film, FolderPlus, ListPlus, Play, Trash2, X } from 'lucide-vue-next';
+import { ChevronDown, Film, FolderPlus, ListPlus, Play, Trash2, X } from 'lucide-vue-next';
 import { useThumbnails } from '../composables/useThumbnails';
 
 const props = defineProps<{
@@ -26,6 +26,19 @@ watch(() => props.videos, (videos) => { for (const video of videos) void loadThu
 
 function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined {
   return jobs.filter((job) => job.video_path === path && ['waiting', 'processing'].includes(job.status)).at(-1);
+}
+
+function selectedPairIndex(video: PlaybackVideo): string {
+  const index = video.cachedPairs?.findIndex(
+    ([source, target]) => video.sourceLanguage === source && video.targetLanguage === target,
+  ) ?? -1;
+  return String(index);
+}
+
+function selectSubtitlePair(video: PlaybackVideo, event: Event): void {
+  const index = Number((event.target as HTMLSelectElement).value);
+  const pair = video.cachedPairs?.[index];
+  if (pair) emit('select-pair', video, pair[0], pair[1]);
 }
 </script>
 
@@ -111,17 +124,22 @@ function currentJob(jobs: SubtitleJob[], path: string): SubtitleJob | undefined 
             @click="emit('select', video)"
           >{{ video.filename }}</button>
           <span class="row-meta">
-            <template v-if="video.cachedPairs?.length">
-              <button
-                v-for="([source, target], index) in video.cachedPairs"
-                :key="`${source}-${target}-${index}`"
-                class="language-badge"
-                :class="{ selected: video.sourceLanguage === source && video.targetLanguage === target }"
-                :aria-label="`Hiển thị phụ đề ${source.toUpperCase()} sang ${target.toUpperCase()} cho ${video.filename}`"
-                :aria-pressed="video.sourceLanguage === source && video.targetLanguage === target"
-                @click="emit('select-pair', video, source, target)"
-              >{{ source.toUpperCase() }}→{{ target.toUpperCase() }}</button>
-            </template>
+            <span v-if="video.cachedPairs?.length" class="subtitle-select-wrap">
+              <select
+                class="subtitle-select"
+                :aria-label="`Chọn phụ đề cho ${video.filename}`"
+                :value="selectedPairIndex(video)"
+                @change="selectSubtitlePair(video, $event)"
+              >
+                <option value="-1" disabled>Chọn phụ đề</option>
+                <option
+                  v-for="([source, target], index) in video.cachedPairs"
+                  :key="`${source}-${target}-${index}`"
+                  :value="String(index)"
+                >{{ source.toUpperCase() }}→{{ target.toUpperCase() }}</option>
+              </select>
+              <ChevronDown :size="12" :stroke-width="2" aria-hidden="true" />
+            </span>
             <span v-else class="no-subtitles">Chưa có phụ đề</span>
             <span v-if="video.error" class="row-error" :title="video.error" aria-label="Lỗi video">Lỗi</span>
           </span>

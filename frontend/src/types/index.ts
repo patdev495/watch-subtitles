@@ -95,14 +95,6 @@ export interface ExportSubtitlesResponse {
 }
 
 
-export interface PipelineStatus {
-  status: 'idle' | 'running' | 'completed' | 'error';
-  progress: number;
-  step: string;
-  cues: Cue[];
-  error?: string | null;
-}
-
 export type SubtitleJobStatus = 'waiting' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface SubtitleJob {
@@ -151,8 +143,6 @@ export interface PyWebViewApi {
   get_latest_cached_subtitles: (video_path: string) => Promise<CachedSubtitlesResponse & { source_language?: string; target_language?: string }>;
   save_cached_subtitles: (video_path: string, source_language: string, target_language: string, cues: Cue[]) => Promise<{ ok: boolean; fingerprint?: string; error?: string }>;
   extract_video_audio: (video_path: string) => Promise<AudioExtractionResponse>;
-  start_subtitles_pipeline: (video_path: string, source_language: string, target_language: string, force?: boolean) => Promise<{ ok: boolean; message?: string; error?: string }>;
-  get_pipeline_status: () => Promise<PipelineStatus>;
   create_subtitle_job: (videoPath: string, sourceLanguage: string, targetLanguage: string, force?: boolean) => Promise<SubtitleJobResponse>;
   get_subtitle_job: (jobId: string) => Promise<SubtitleJobResponse>;
   list_subtitle_jobs: () => Promise<{ ok: boolean; jobs: SubtitleJob[] }>;

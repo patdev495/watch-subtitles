@@ -31,12 +31,13 @@ describe('PlaybackQueue', () => {
     expect(wrapper.emitted('select')?.[0]).toEqual([videos[1]]);
     expect(wrapper.emitted('remove')?.[0]).toEqual([videos[1]]);
   });
-  it('offers each cached pair as a separate subtitle choice', async () => {
+  it('offers cached subtitle pairs in one dropdown', async () => {
     const multiPairVideo = { ...videos[0], targetLanguage: 'vi', cachedPairs: [['en', 'vi'], ['en', 'zh-CN']] as [string, string][] };
     const wrapper = mount(PlaybackQueue, { props: { videos: [multiPairVideo], jobs: [], activePath: multiPairVideo.path, autoAdvance: true } });
-    const current = wrapper.get('button[aria-label="Hiển thị phụ đề EN sang VI cho a.mp4"]');
-    expect(current.attributes('aria-pressed')).toBe('true');
-    await wrapper.get('button[aria-label="Hiển thị phụ đề EN sang ZH-CN cho a.mp4"]').trigger('click');
+    const dropdown = wrapper.get('select[aria-label="Chọn phụ đề cho a.mp4"]');
+    expect((dropdown.element as HTMLSelectElement).value).toBe('0');
+    expect(dropdown.findAll('option').map((option) => option.text())).toEqual(['Chọn phụ đề', 'EN→VI', 'EN→ZH-CN']);
+    await dropdown.setValue('1');
     expect(wrapper.emitted('select-pair')?.[0]).toEqual([multiPairVideo, 'en', 'zh-CN']);
     expect(wrapper.emitted('select')).toBeUndefined();
   });

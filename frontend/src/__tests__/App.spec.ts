@@ -31,6 +31,43 @@ describe('App', () => {
     expect(api.remove_subtitle_job).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+  it('does not re-add a Video after clearing the queue during its cache lookup', async () => {
+    let finishLookup!: (value: { ok: boolean; language_pairs: [string, string][] }) => void;
+    const api = {
+      ping: vi.fn().mockResolvedValue({ status: 'ok' }),
+      get_playback_queue: vi.fn().mockResolvedValue({
+        videos: [{ path: '/videos/a.mp4', source_language: 'en' }],
+        selected_path: '/videos/a.mp4', playback_time: 0, auto_advance: true,
+      }),
+      load_video_path: vi.fn().mockResolvedValue({
+        cancelled: false, path: '/videos/a.mp4', filename: 'a.mp4', stream_url: 'http://localhost/a',
+      }),
+      open_video_dialog: vi.fn().mockResolvedValue({
+        cancelled: false, path: '/videos/b.mp4', filename: 'b.mp4', stream_url: 'http://localhost/b',
+      }),
+      get_cached_subtitle_languages: vi.fn().mockImplementation((path: string) => (
+        path === '/videos/b.mp4'
+          ? new Promise((resolve) => { finishLookup = resolve; })
+          : Promise.resolve({ ok: true, language_pairs: [] })
+      )),
+      get_cached_subtitles: vi.fn().mockResolvedValue({ ok: true, cached: false, cues: [] }),
+      list_subtitle_jobs: vi.fn().mockResolvedValue({ ok: true, jobs: [] }),
+      save_playback_queue: vi.fn().mockResolvedValue({}),
+    } as unknown as PyWebViewApi;
+    window.pywebview = { api };
+    const wrapper = mount(App, { global: { stubs: { VideoPlayer: { template: '<div />' } } } });
+    await flushPromises();
+
+    await wrapper.get('button.open-button').trigger('click');
+    await flushPromises();
+    await wrapper.get('button[aria-label="Xóa tất cả video khỏi hàng đợi phát"]').trigger('click');
+    finishLookup({ ok: true, language_pairs: [] });
+    await flushPromises();
+
+    expect(wrapper.findAll('.playback-queue li')).toHaveLength(0);
+    expect(api.save_playback_queue).toHaveBeenLastCalledWith(expect.objectContaining({ videos: [], selected_path: '' }));
+    wrapper.unmount();
+  });
   it('creates eligible jobs in Playback Queue order from modal', async () => {
     const paths = ['/a.mp4', '/b.mp4', '/c.mp4'];
     const create = vi.fn().mockImplementation(async (path: string) => ({ ok: true, job: {
@@ -203,11 +240,11 @@ describe('App', () => {
     await flushPromises();
     await wrapper.get('button.open-button').trigger('click');
     await flushPromises();
-    await wrapper.get('button[aria-label="Hiển thị phụ đề EN sang ZH-CN cho a.mp4"]').trigger('click');
+    await wrapper.get('select[aria-label="Chọn phụ đề cho a.mp4"]').setValue('1');
     await flushPromises();
     expect(api.get_cached_subtitles).toHaveBeenCalledWith('/videos/a.mp4', 'en', 'zh-CN');
     expect(wrapper.findComponent(TranscriptFooter).props('cues')).toEqual(zhCues);
-    expect(wrapper.get('button[aria-label="Hiển thị phụ đề EN sang ZH-CN cho a.mp4"]').attributes('aria-pressed')).toBe('true');
+    expect((wrapper.get('select[aria-label="Chọn phụ đề cho a.mp4"]').element as HTMLSelectElement).value).toBe('1');
     expect(api.save_playback_queue).toHaveBeenLastCalledWith(expect.objectContaining({ videos: [{ path: '/videos/a.mp4', source_language: 'en', target_language: 'zh-CN' }] }));
     await wrapper.get('[data-test="queue-select-a"]').trigger('click');
     await flushPromises();

@@ -7,25 +7,20 @@ import TranscriptFooter from './components/TranscriptFooter.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import SubtitleGenerationModal from './components/SubtitleGenerationModal.vue';
 import PlaybackQueue from './components/PlaybackQueue.vue';
+import { usePlaybackQueue } from './composables/usePlaybackQueue';
 import { useSubtitleQueue } from './composables/useSubtitleQueue';
 import { useTheme } from './composables/useTheme';
-import { useQueueNavigation } from './composables/useQueueNavigation';
 import { useSubtitleDisplayPreferences } from './composables/useSubtitleDisplayPreferences';
-import { usePlaybackQueuePersistence } from './composables/usePlaybackQueuePersistence';
 import { getMockCues } from './fixtures/mockCues';
 import type { VideoDialogResponse, AppSettings, Cue, SubtitleJob, PlaybackVideo } from './types';
 // ── Video state ──────────────────────────────────────────────────────────────
 const videoSrc = ref<string>('');
 const currentFilename = ref<string>('');
-const currentFilePath = ref<string>('');
 const backendConnected = ref<boolean>(false);
 const isDragging = ref<boolean>(false);
 const notifications = ref<{ id: string; message: string; failed: boolean }[]>([]);
 const currentTime = ref<number>(0);
 const duration = ref<number>(0);
-const autoAdvance = ref(true);
-const restored = ref(false);
-const restoreTime = ref(0);
 let subtitleLoadToken = 0;
 let videoOpenToken = 0;
 // ── Pipeline & Subtitle state ────────────────────────────────────────────────
@@ -41,9 +36,33 @@ function loadMockCues(): void {
 
 const { loadTheme } = useTheme();
 
-const { queuedVideos, subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, generateAllQueuedVideos, retrySubtitleJob } = useSubtitleQueue(
+const {
+  queuedVideos, currentFilePath, autoAdvance, restoreTime, hasPrevious, hasNext,
+  restoreQueue, rememberOpenedVideo, importQueue, selectQueueVideo, setOpenedVideo, setVideoLanguages,
+  recordSubtitleAvailability, markPlaybackError, removePlaybackVideo, clearPlaybackQueue,
+  playNext, playPrevious, advanceQueue, handlePlaybackError,
+} = usePlaybackQueue(currentTime, sourceLanguage, {
+  openVideo: async (path, source, target, resumeAt) => handleOpenVideo(path, source, target, resumeAt),
+  stopPlayback: () => {
+    ++subtitleLoadToken;
+    ++videoOpenToken;
+    videoSrc.value = '';
+    currentFilename.value = '';
+    cues.value = [];
+    hasSubtitles.value = false;
+    duration.value = 0;
+  },
+  duplicateImport: (path) => {
+    notifications.value.push({ id: `duplicate-${Date.now()}-${path}`, message: 'Video đã trong hàng đợi rồi.', failed: true });
+  },
+});
+
+const { subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob, generateAllQueuedVideos, retrySubtitleJob } = useSubtitleQueue(
   currentFilePath,
   (job, previous) => {
+    if (job.status === 'completed') {
+      recordSubtitleAvailability(job.video_path, job.source_language, job.target_language);
+    }
     if (job.video_path === currentFilePath.value
       && job.source_language === sourceLanguage.value
       && job.target_language === targetLanguage.value) {
@@ -81,29 +100,6 @@ async function loadSettings(): Promise<void> {
       console.error('Failed to load settings:', err);
     }
   }
-}
-
-const { hasPrevious, hasNext, playNext, playPrevious } = useQueueNavigation(queuedVideos, currentFilePath, selectQueueVideo);
-usePlaybackQueuePersistence(queuedVideos, currentFilePath, currentTime, autoAdvance, restored);
-
-async function restoreQueue(): Promise<void> {
-  const api = window.pywebview?.api;
-  if (!api) return;
-  if (!api.get_playback_queue) { restored.value = true; return; }
-  try {
-    const state = await api.get_playback_queue();
-    autoAdvance.value = state.auto_advance;
-    for (const video of state.videos) {
-      const cached = await api.get_cached_subtitle_languages(video.path);
-      queuedVideos.value.push({ path: video.path, filename: video.path.split(/[/\\]/).pop() ?? video.path, sourceLanguage: video.source_language, targetLanguage: video.target_language ?? undefined, cachedPairs: cached.ok ? cached.language_pairs : [] });
-    }
-    if (state.selected_path) {
-      restoreTime.value = state.playback_time;
-      const selected = queuedVideos.value.find((video) => video.path === state.selected_path);
-      await handleOpenVideo(state.selected_path, selected?.sourceLanguage, selected?.targetLanguage, state.playback_time);
-    }
-  } catch (error) { console.error('Failed to restore Playback Queue:', error); }
-  finally { restored.value = true; }
 }
 
 function handleSettingsSaved(saved: AppSettings): void {
@@ -167,10 +163,15 @@ async function loadSubtitlesForVideo(filePath: string, source: string, target: s
 async function handleSourceLanguageChange(language: string): Promise<void> {
   sourceLanguage.value = language;
   const video = queuedVideos.value.find((item) => item.path === currentFilePath.value);
-  if (video) { video.sourceLanguage = language; video.targetLanguage = targetLanguage.value; }
+  if (video) setVideoLanguages(video, language, targetLanguage.value);
   if (currentFilePath.value) {
     await loadSubtitlesForVideo(currentFilePath.value, language, targetLanguage.value);
   }
+}
+
+function handleQueueSourceChange(video: PlaybackVideo, source: string): void {
+  setVideoLanguages(video, source);
+  if (video.path === currentFilePath.value) void handleSourceLanguageChange(source);
 }
 
 async function handleOpenVideo(videoPath?: string, source?: string, target?: string, resumeAt = 0): Promise<void> {
@@ -195,20 +196,14 @@ async function handleOpenVideo(videoPath?: string, source?: string, target?: str
     const res: VideoDialogResponse = videoPath ? await window.pywebview.api.load_video_path(videoPath) : await window.pywebview.api.open_video_dialog();
     if (openToken !== videoOpenToken) return;
     if (!res.cancelled && res.stream_url && res.filename) {
-      restoreTime.value = resumeAt;
-      currentTime.value = resumeAt;
       videoSrc.value = res.stream_url;
       currentFilename.value = res.filename;
-      currentFilePath.value = res.path || '';
+      setOpenedVideo(res.path || '', resumeAt);
       const existing = queuedVideos.value.find((video) => video.path === currentFilePath.value);
-      if (!existing && currentFilePath.value) {
-        const cached = await window.pywebview.api.get_cached_subtitle_languages?.(currentFilePath.value);
-        if (openToken !== videoOpenToken) return;
-        queuedVideos.value.push({ path: currentFilePath.value, filename: res.filename, sourceLanguage: source ?? sourceLanguage.value, targetLanguage: target, cachedPairs: cached?.ok ? cached.language_pairs : [] });
+      if (currentFilePath.value) {
+        await rememberOpenedVideo(currentFilePath.value, res.filename, source, target, () => openToken === videoOpenToken);
       }
-      if (existing) {
-        existing.error = undefined;
-      }
+      if (openToken !== videoOpenToken) return;
       const selectedSource = source ?? existing?.sourceLanguage;
       const selectedTarget = target ?? existing?.targetLanguage;
       if (selectedSource && selectedTarget) {
@@ -224,8 +219,7 @@ async function handleOpenVideo(videoPath?: string, source?: string, target?: str
         hasSubtitles.value = cues.value.length > 0;
         const video = queuedVideos.value.find((item) => item.path === currentFilePath.value);
         if (video && latest.cached) {
-          video.sourceLanguage = sourceLanguage.value;
-          video.targetLanguage = targetLanguage.value;
+          setVideoLanguages(video, sourceLanguage.value, targetLanguage.value);
         }
       } else {
         if (selectedSource) sourceLanguage.value = selectedSource;
@@ -233,42 +227,16 @@ async function handleOpenVideo(videoPath?: string, source?: string, target?: str
       }
     }
     else if (videoPath) {
-      const video = queuedVideos.value.find((item) => item.path === videoPath);
-      if (video) video.error = 'Không thể phát video.';
+      markPlaybackError(videoPath);
     }
   } catch (err) {
     console.error('Lỗi khi mở video:', err);
-    const video = queuedVideos.value.find((item) => item.path === videoPath);
-    if (video) video.error = 'Không thể phát video.';
+    if (videoPath) markPlaybackError(videoPath);
   }
-}
-
-async function importQueue(kind: 'files' | 'folder'): Promise<void> {
-  const api = window.pywebview?.api;
-  if (!api) return;
-  const result = kind === 'files'
-    ? (api.open_video_files_dialog ? await api.open_video_files_dialog() : { cancelled: false, videos: [await api.open_video_dialog()] })
-    : await api.open_video_folder_dialog();
-  if (result.cancelled) return;
-  for (const entry of result.videos) {
-    if (!entry.path || !entry.filename) continue;
-    if (queuedVideos.value.some((video) => video.path === entry.path)) {
-      notifications.value.push({ id: `duplicate-${Date.now()}-${entry.path}`, message: 'Video đã trong hàng đợi rồi.', failed: true });
-      continue;
-    }
-    const cached = await api.get_cached_subtitle_languages(entry.path);
-    queuedVideos.value.push({ path: entry.path, filename: entry.filename, sourceLanguage: sourceLanguage.value, cachedPairs: cached.ok ? cached.language_pairs : [] });
-  }
-}
-
-async function selectQueueVideo(video: PlaybackVideo): Promise<void> {
-  restoreTime.value = 0;
-  await handleOpenVideo(video.path, video.sourceLanguage, video.targetLanguage);
 }
 
 async function selectSubtitlePair(video: PlaybackVideo, source: string, target: string): Promise<void> {
-  video.sourceLanguage = source;
-  video.targetLanguage = target;
+  setVideoLanguages(video, source, target);
   if (video.path === currentFilePath.value) {
     ++videoOpenToken;
     sourceLanguage.value = source;
@@ -277,44 +245,6 @@ async function selectSubtitlePair(video: PlaybackVideo, source: string, target: 
   } else {
     await handleOpenVideo(video.path, source, target);
   }
-}
-
-async function removePlaybackVideo(video: PlaybackVideo): Promise<void> {
-  const index = queuedVideos.value.findIndex((item) => item.path === video.path);
-  if (index < 0) return;
-  const wasActive = currentFilePath.value === video.path;
-  queuedVideos.value.splice(index, 1);
-  if (wasActive) {
-    videoSrc.value = ''; currentFilePath.value = ''; currentFilename.value = '';
-    cues.value = []; currentTime.value = 0; restoreTime.value = 0;
-    const next = queuedVideos.value[index] ?? queuedVideos.value[0];
-    if (next) await selectQueueVideo(next as PlaybackVideo);
-  }
-}
-
-function clearPlaybackQueue(): void {
-  if (queuedVideos.value.length === 0) return;
-  ++subtitleLoadToken;
-  queuedVideos.value = [];
-  videoSrc.value = '';
-  currentFilePath.value = '';
-  currentFilename.value = '';
-  cues.value = [];
-  hasSubtitles.value = false;
-  currentTime.value = 0;
-  duration.value = 0;
-  restoreTime.value = 0;
-}
-
-async function advanceQueue(): Promise<void> {
-  if (!autoAdvance.value) return;
-  await playNext();
-}
-
-function handlePlaybackError(): void {
-  const video = queuedVideos.value.find((item) => item.path === currentFilePath.value);
-  if (video) video.error = 'Không thể phát video.';
-  void advanceQueue();
 }
 
 async function handlePingBackend(): Promise<void> {
@@ -342,14 +272,8 @@ async function handleDrop(event: DragEvent): Promise<void> {
 
   if (window.pywebview?.api && anyFile.path) {
     try {
-      const res = await window.pywebview.api.load_video_path(anyFile.path);
-      if (!res.cancelled && res.stream_url) {
-        videoSrc.value = res.stream_url;
-        currentFilename.value = res.filename ?? file.name;
-        currentFilePath.value = anyFile.path;
-        await loadSubtitlesForVideo(currentFilePath.value, sourceLanguage.value, targetLanguage.value);
-        return;
-      }
+      await handleOpenVideo(anyFile.path);
+      if (currentFilePath.value === anyFile.path) return;
     } catch (err) {
       console.warn('Backend load path error, fallback to URL.createObjectURL', err);
     }
@@ -424,7 +348,7 @@ onMounted(() => {
         @remove="removePlaybackVideo"
         @clear="clearPlaybackQueue"
         @update:auto-advance="autoAdvance = $event"
-        @source-change="(video, source) => { video.sourceLanguage = source; if (video.path === currentFilePath) handleSourceLanguageChange(source); }"
+        @source-change="handleQueueSourceChange"
       />
       <!-- Player Area -->
       <section class="player-wrapper">
@@ -468,7 +392,7 @@ onMounted(() => {
       @generate="createSubtitleJob"
       @generate-all="generateAllQueuedVideos"
       @retry="retrySubtitleJob"
-      @source-change="(video, source) => { video.sourceLanguage = source; if (video.path === currentFilePath) handleSourceLanguageChange(source); }"
+      @source-change="handleQueueSourceChange"
     />
 
     <!-- Settings Modal -->
