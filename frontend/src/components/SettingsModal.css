@@ -165,10 +165,12 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.field-input:focus,
+.field-input:focus-visible,
 .field-select:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .field-input {

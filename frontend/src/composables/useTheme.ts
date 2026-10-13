@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import type { ThemeName } from '../types';
 
 const STORAGE_KEY = 'watch-subtitles:theme';
-const theme = ref<ThemeName>('light');
+const theme = ref<ThemeName>('dark');
 
 function isThemeName(value: unknown): value is ThemeName {
   return value === 'dark' || value === 'light';
@@ -28,11 +28,12 @@ function storeTheme(value: ThemeName): void {
 function applyTheme(value: ThemeName): void {
   theme.value = value;
   document.documentElement.dataset.theme = value;
+  document.documentElement.classList.toggle('dark', value === 'dark');
 }
 
 /** Apply the persisted theme before the app mounts, so no wrong-theme frame is painted. */
 export function initThemeFromStorage(): void {
-  applyTheme(readStoredTheme() ?? 'light');
+  applyTheme(readStoredTheme() ?? 'dark');
 }
 
 export function useTheme() {

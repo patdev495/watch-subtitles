@@ -326,6 +326,8 @@ button:hover:not(:disabled) {
 .language-pair select:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 /* ── State chip ─────────────────────────────────────────────────────────── */

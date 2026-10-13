@@ -329,6 +329,8 @@ function onRateChange(event: Event): void { emit('playback-rate-change', parseFl
 
 .speed-select:focus-visible {
   border-color: var(--border-focus);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 @media (max-width: 1100px) {

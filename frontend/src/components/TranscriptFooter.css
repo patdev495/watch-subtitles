@@ -385,6 +385,8 @@
 
 .export-row select:focus-visible {
   border-color: var(--border-focus);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .export-row button {
