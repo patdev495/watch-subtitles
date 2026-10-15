@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @import './theme.css';
 
 *, *::before, *::after {
@@ -9,124 +10,35 @@ html, body, #app {
   height: 100%;
   margin: 0;
   padding: 0;
-}
-
-body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
   overflow: hidden;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font: 400 var(--font-body)/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
-button, input, select, textarea {
-  font: inherit;
-  color: inherit;
+/* Glassmorphism utility */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
 }
 
-/* Component recipes from the imported design system. Existing Vue component
-   names are included alongside reusable semantic classes. */
-:where(.button-primary, .primary-button, .btn-save, .browse-btn, .modal-actions button, .export-row button) {
-  border-radius: var(--radius);
-  background: hsl(var(--primary));
-  color: var(--accent-contrast);
-  font-weight: 600;
+.glass-panel-hover:hover {
+  background: rgba(26, 27, 33, 0.8);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
-:where(.button-secondary, .btn-cancel, .btn-test) {
-  border-radius: var(--radius);
-  background: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
-  font-weight: 500;
+/* Custom transitions */
+.smooth-fluid {
+  transition: all var(--transition-base);
 }
 
-:where(.button-ghost, .ghost-button) {
-  border-radius: var(--radius);
-  background: transparent;
-  color: hsl(var(--foreground));
-  font-weight: 500;
-}
-
-:where(.card, .modal-card, .drag-halo-card) {
-  border-color: hsl(var(--border));
-  border-radius: 0.5rem;
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-  box-shadow: var(--shadow-dropdown);
-}
-
-:where(.input, .field-input, .field-select, .subtitle-select, .speed-select, .language-pair select, .export-row select) {
-  border-color: hsl(var(--input));
-  border-radius: var(--radius);
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-:where(input, textarea)::placeholder {
-  color: hsl(var(--muted-foreground));
-}
-
-h1, h2, h3, h4 {
-  letter-spacing: -0.015em;
-}
-
-svg.lucide {
-  stroke-width: 1.5;
-  vertical-align: middle;
-}
-
-button {
-  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-:where(button, input, select, textarea, a, [role='button'], [tabindex]):focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
-}
-
-::selection {
-  background: var(--accent-soft);
-  color: var(--text-primary);
-}
-
-/* ── Native form controls follow the active theme ───────────────────────── */
-:root[data-theme='light'] select,
-:root[data-theme='light'] input[type='range'],
-:root[data-theme='light'] input[type='color'] {
-  color-scheme: light;
-}
-
-/* ── Range controls ─────────────────────────────────────────────────────── */
-input[type='range'] {
-  accent-color: var(--accent);
-}
-
-input[type='range']::-webkit-slider-runnable-track {
-  border-radius: var(--radius-pill);
-}
-
-input[type='range']::-webkit-slider-thumb {
-  border-radius: 50%;
-  background: var(--accent);
-  transition: transform var(--transition-fast), background-color var(--transition-fast);
-}
-
-input[type='range']:hover::-webkit-slider-thumb {
-  background: var(--accent-hover);
-}
-
-/* ── Scrollbars ─────────────────────────────────────────────────────────── */
+/* Scrollbar customization */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -134,21 +46,10 @@ input[type='range']:hover::-webkit-slider-thumb {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border: 2px solid transparent;
-  background-clip: content-box;
-  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-  background-clip: content-box;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+  background: rgba(255, 255, 255, 0.2);
 }

@@ -1,190 +1,90 @@
-/* Spotify design system imported from:
-   https://luongnv.com/sleek-ui/designs/spotify.json
-
-   Raw shadcn-compatible color tokens are stored as HSL channels. The existing
-   Vue UI consumes the compatibility aliases below, which keeps the component
-   layer theme-agnostic while preserving the imported design vocabulary.
-   Light is defined on :root; dark works with both the requested .dark class
-   and the app's persisted data-theme attribute. */
+/* Deep Charcoal Studio Design System
+   Professional media-suite aesthetic with Indigo accents and Glassmorphism. */
 
 :root {
-  color-scheme: light;
-
-  /* Imported semantic colors — tokens.colors.light */
-  --background: 0 0% 100%;
-  --foreground: 0 0% 7%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --primary: 141 76% 48%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 10% 3.9%;
-  --accent-token: 240 4.8% 95.9%;
-  --accent-foreground: 240 10% 3.9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 141 76% 48%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-
-  /* Typography — tokens.typography.fontFamily */
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-  /* Geometry — tokens.radius */
-  --radius: 0.375rem;
-  --radius-sm: 0.125rem;
-  --radius-control: var(--radius);
-  --radius-card: 0.5rem;
-  --radius-panel: 0.5rem;
-  --radius-pill: 9999px;
-
-  /* Semantic compatibility layer */
-  --bg-base: hsl(var(--background));
-  --bg-surface: hsl(var(--card));
-  --bg-raised: hsl(var(--muted));
-  --bg-hover: hsl(var(--accent-token));
-  --bg-active: hsl(var(--primary) / 0.14);
-  --bg-field: hsl(var(--background));
-  --bg-player: #000000;
-  --bg-overlay: hsl(var(--card) / 0.96);
-  --bg-caption: rgba(11, 14, 20, 0.86);
-  --bg-backdrop: hsl(var(--foreground) / 0.42);
-  --player-scrim: linear-gradient(to top, rgba(5, 8, 13, 0.92) 0%, rgba(5, 8, 13, 0.45) 55%, transparent 100%);
-
-  --border-subtle: hsl(var(--border));
-  --border-strong: hsl(var(--muted-foreground) / 0.52);
-  --border-focus: currentColor;
-
-  --text-primary: hsl(var(--foreground));
-  --text-secondary: hsl(var(--foreground) / 0.78);
-  --text-muted: hsl(var(--muted-foreground));
-
-  --accent: hsl(var(--primary));
-  --accent-hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
-  --accent-active: color-mix(in srgb, hsl(var(--primary)) 76%, black);
-  --accent-soft: hsl(var(--primary) / 0.14);
-  /* The source's white-on-green pair is 1.91:1. Spotify-style near-black text
-     preserves the green while exceeding the requested 4.5:1 target. */
-  --accent-contrast: hsl(var(--foreground));
-
-  --success: hsl(var(--primary));
-  --success-soft: hsl(var(--primary) / 0.14);
-  --warning: hsl(38 74% 34%);
-  --warning-soft: hsl(38 92% 92%);
-  --danger: hsl(0 66% 43%);
-  --danger-soft: hsl(var(--destructive) / 0.12);
-
-  /* Elevation — tokens.shadows */
-  --shadow-panel: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-stage: none;
-  --shadow-caption: 0 12px 32px -8px rgba(0, 0, 0, 0.7);
-  --shadow-dropdown: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --blur-glass: none;
-
-  --control-height: 34px;
-  --control-height-lg: 44px;
-  --header-height: 48px;
-  --sidebar-width: clamp(248px, 24vw, 280px);
-  --thumb-width: 72px;
-  --thumb-height: 42px;
-
-  /* Spacing — tokens.spacing */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 28px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-
-  --font-meta: 0.75rem;
-  --font-body: 0.875rem;
-  --font-file: 0.9375rem;
-  --font-title: 1.125rem;
-  --font-display: 1.25rem;
-  --font-hero: 1.5rem;
-
-  --icon-sm: 16px;
-  --icon-md: 18px;
-  --icon-lg: 22px;
-
-  --player-control-size: 36px;
-  --progress-height: 4px;
-  --progress-hover-height: 6px;
-  --caption-offset: 76px;
-  --volume-width: 88px;
-
-  --toast-width: 380px;
-  --popover-width: 380px;
-  --caption-max-width: 880px;
-  --settings-width: 560px;
-  --generation-width: 960px;
-  --generation-height: 780px;
-  --source-select-width: 200px;
-  --subtitle-label-width: 76px;
-  --subtitle-output-width: 40px;
-  --export-format-width: 76px;
-  --export-action-width: 76px;
-
-  --row-height: 58px;
-  --row-gap: 0px;
-  --indicator-width: 3px;
-
-  --drawer-top: 64px;
-  --drawer-inset: 32px;
-  --drawer-height-inset: 88px;
-  --drawer-compact-top: 52px;
-  --drawer-compact-height-inset: 64px;
-
-  /* The source contains no tokens.motion block; retain restrained native CSS
-     transitions and honor its accessibility.reducedMotion requirement. */
-  --transition-fast: 140ms ease-out;
-  --transition-base: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  --transition-slow: 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
-
-  --accent-primary: var(--accent);
-  --bg-control: var(--bg-raised);
-  --bg-selected: var(--bg-active);
-}
-
-:root.dark,
-:root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Imported semantic colors — tokens.colors.dark */
-  --background: 0 0% 7%;
-  --foreground: 0 0% 95%;
-  --muted: 240 33% 19%;
-  --muted-foreground: 240 5% 64.9%;
-  --primary: 141 76% 48%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 33% 19%;
-  --secondary-foreground: 0 0% 95%;
-  --accent-token: 240 33% 19%;
-  --accent-foreground: 0 0% 95%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 240 33% 22%;
-  --input: 240 33% 22%;
-  --ring: 141 76% 48%;
-  --card: 240 33% 17%;
-  --card-foreground: 0 0% 95%;
+  /* Primitive Tokens - Deep Charcoal Palette */
+  --ch-50: #f6f6f7;
+  --ch-100: #e7e7e9;
+  --ch-200: #d1d1d5;
+  --ch-300: #aeafb4;
+  --ch-400: #82838b;
+  --ch-500: #64656d;
+  --ch-600: #4e4f55;
+  --ch-700: #3f4044;
+  --ch-800: #121318; /* Surface */
+  --ch-900: #0b0b0e; /* Background */
+  --ch-950: #050507;
 
-  --bg-overlay: hsl(var(--card) / 0.96);
-  --bg-backdrop: rgb(0 0 0 / 0.72);
-  --border-strong: hsl(var(--muted-foreground) / 0.48);
-  --accent-contrast: hsl(var(--background));
-  --warning: hsl(38 82% 68%);
-  --warning-soft: hsl(38 38% 20%);
-  --danger: hsl(0 75% 75%);
-  --danger-soft: hsl(0 24% 23%);
-  --shadow-panel: 0 10px 15px -3px rgb(0 0 0 / 0.38), 0 4px 6px -4px rgb(0 0 0 / 0.32);
-  --shadow-dropdown: 0 10px 24px rgb(0 0 0 / 0.36);
+  /* Indigo Accent Palette */
+  --in-50: #eef2ff;
+  --in-100: #e0e7ff;
+  --in-500: #6366f1; /* Primary Indigo */
+  --in-600: #4f46e5;
+  --in-700: #4338ca;
+
+  /* shadcn-compatible HSL channels (mapped to Charcoal/Indigo) */
+  --background: 240 10% 4.7%; /* #0B0B0E */
+  --foreground: 0 0% 98%;
+  --muted: 240 10% 12%;
+  --muted-foreground: 240 5% 65%;
+  --primary: 239 84% 67%; /* #6366F1 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 10% 15%;
+  --secondary-foreground: 0 0% 98%;
+  --accent-token: 239 84% 67% / 0.15;
+  --accent-foreground: 239 84% 67%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 10% 20% / 0.5;
+  --input: 240 10% 20%;
+  --ring: 239 84% 67%;
+  --card: 240 10% 8%; /* #121318 */
+  --card-foreground: 0 0% 98%;
+
+  /* Typography */
+  --font-sans: "Inter", "Geist", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Geometry */
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-pill: 9999px;
+  --radius-panel: 0.75rem;
+
+  /* Semantic Layer */
+  --bg-base: #0b0b0e;
+  --bg-surface: #121318;
+  --bg-raised: #1a1b21;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(99, 102, 241, 0.15);
+  --bg-player: #000000;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(18, 19, 24, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(12px);
+
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+
+  --text-primary: #fcfcfc;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  /* Layout */
+  --header-height: 56px;
+  --sidebar-width: 320px;
+  --transition-base: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --shadow-panel: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+}
+
+/* Force dark mode behavior */
+:root {
+  color-scheme: dark;
 }

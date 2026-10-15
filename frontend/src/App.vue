@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { Sparkles } from 'lucide-vue-next';
+import { Sparkles, PanelRightClose, PanelRightOpen } from 'lucide-vue-next';
 import HeaderBar from './components/HeaderBar.vue';
 import VideoPlayer from './components/VideoPlayer.vue';
 import TranscriptFooter from './components/TranscriptFooter.vue';
@@ -82,6 +82,7 @@ const { subtitleJobs, updateSubtitleJob, refreshSubtitleJobs, createSubtitleJob,
 // ── Settings state ───────────────────────────────────────────────────────────
 const settingsOpen = ref<boolean>(false);
 const subtitlesModalOpen = ref(false);
+const sidebarVisible = ref(true);
 const { displayPreferences, loadDisplayPreferences, saveDisplayPreferences } = useSubtitleDisplayPreferences();
 const settings = ref<AppSettings>({
   deepgram_api_key: '',
@@ -335,23 +336,9 @@ onMounted(() => {
     />
 
     <!-- Main Workspace -->
-    <main class="studio-workspace">
-      <PlaybackQueue
-        :videos="queuedVideos"
-        :jobs="subtitleJobs"
-        :active-path="currentFilePath"
-        :auto-advance="autoAdvance"
-        @add-files="importQueue('files')"
-        @add-folder="importQueue('folder')"
-        @select="selectQueueVideo"
-        @select-pair="selectSubtitlePair"
-        @remove="removePlaybackVideo"
-        @clear="clearPlaybackQueue"
-        @update:auto-advance="autoAdvance = $event"
-        @source-change="handleQueueSourceChange"
-      />
-      <!-- Player Area -->
-      <section class="player-wrapper">
+    <main class="flex-1 flex min-w-0 min-h-0 relative overflow-hidden bg-[var(--bg-base)]">
+      <!-- Player Area (Center) -->
+      <section class="flex-1 flex min-w-0 min-h-0 relative bg-[var(--bg-base)]">
         <VideoPlayer
           :src="videoSrc"
           :filename="currentFilename"
@@ -380,6 +367,51 @@ onMounted(() => {
           </template>
         </VideoPlayer>
       </section>
+
+      <!-- Sidebar Toggle Floating Button when closed -->
+      <button
+        v-if="!sidebarVisible"
+        class="absolute right-4 top-4 z-30 w-10 h-10 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white shadow-lg grid place-items-center transition-all"
+        title="Mở bảng điều khiển"
+        @click="sidebarVisible = true"
+      >
+        <PanelRightOpen :size="18" />
+      </button>
+
+      <!-- Playback Queue Sidebar (Right) -->
+      <aside
+        class="flex flex-col transition-all duration-300 ease-in-out border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] relative z-20"
+        :style="{ width: sidebarVisible ? '360px' : '0px', opacity: sidebarVisible ? '1' : '0', overflow: 'hidden' }"
+      >
+        <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+          <span class="font-semibold text-sm text-white flex items-center gap-2">
+            Hàng đợi phát & Phụ đề
+          </span>
+          <button
+            class="w-7 h-7 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-white grid place-items-center transition-all"
+            title="Đóng bảng điều khiển"
+            @click="sidebarVisible = false"
+          >
+            <PanelRightClose :size="16" />
+          </button>
+        </div>
+        <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <PlaybackQueue
+            :videos="queuedVideos"
+            :jobs="subtitleJobs"
+            :active-path="currentFilePath"
+            :auto-advance="autoAdvance"
+            @add-files="importQueue('files')"
+            @add-folder="importQueue('folder')"
+            @select="selectQueueVideo"
+            @select-pair="selectSubtitlePair"
+            @remove="removePlaybackVideo"
+            @clear="clearPlaybackQueue"
+            @update:auto-advance="autoAdvance = $event"
+            @source-change="handleQueueSourceChange"
+          />
+        </div>
+      </aside>
     </main>
 
     <SubtitleGenerationModal
